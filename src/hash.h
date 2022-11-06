@@ -8,6 +8,7 @@
 
 #include <crypto/common.h>
 #include <crypto/ripemd160.h>
+#include <crypto/scrypt.h>
 #include <crypto/sha256.h>
 #include <prevector.h>
 #include <serialize.h>
@@ -206,6 +207,15 @@ uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
     CHashWriter ss(nType, nVersion);
     ss << obj;
     return ss.GetHash();
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 scrypt_1024_1_1_256(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    scrypt_1024_1_1_256(obj, reinterpret_cast<char*>(&out));
+    return out;
 }
 
 /** Single-SHA256 a 32-byte input (represented as uint256). */
