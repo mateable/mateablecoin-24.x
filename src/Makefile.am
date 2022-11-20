@@ -594,6 +594,8 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/validation.h \
   hash.cpp \
   hash.h \
+  multialgo.cpp \
+  multialgo.h \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \

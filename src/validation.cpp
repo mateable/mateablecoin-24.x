@@ -24,6 +24,7 @@
 #include <hash.h>
 #include <logging.h>
 #include <logging/timer.h>
+#include <multialgo.h>
 #include <node/blockstorage.h>
 #include <node/interface_ui.h>
 #include <node/utxo_snapshot.h>
@@ -1588,6 +1589,7 @@ static void AlertNotify(const std::string& strMessage)
 void Chainstate::CheckForkWarningConditions()
 {
     AssertLockHeld(cs_main);
+    const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Before we get past initial download, we cannot reliably alert about forks
     // (we assume we don't get stuck on a fork before finishing our initial sync)
@@ -1595,7 +1597,7 @@ void Chainstate::CheckForkWarningConditions()
         return;
     }
 
-    if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip()) * 6)) {
+    if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip(), consensusParams) * 6)) {
         LogPrintf("%s: Warning: Found invalid chain at least ~6 blocks longer than our best chain.\nChain state database corruption likely.\n", __func__);
         SetfLargeWorkInvalidChainFound(true);
     } else {
@@ -2516,9 +2518,9 @@ static void UpdateTipLog(
 {
 
     AssertLockHeld(::cs_main);
-    LogPrintf("%s%s: new best=%s height=%d version=0x%08x log2_work=%f tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)%s\n",
+    LogPrintf("%s%s: new best=%s height=%d version=0x%08x algo=%s log2_work=%f tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)%s\n",
         prefix, func_name,
-        tip->GetBlockHash().ToString(), tip->nHeight, tip->nVersion,
+        tip->GetBlockHash().ToString(), tip->nHeight, tip->nVersion, GetAlgoNameByIndex(tip),
         log(tip->nChainWork.getdouble()) / log(2.0), (unsigned long)tip->nChainTx,
         FormatISO8601DateTime(tip->GetBlockTime()),
         GuessVerificationProgress(params.TxData(), tip),
@@ -3449,9 +3451,10 @@ bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consens
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
 {
     arith_uint256 total_work{0};
+    const Consensus::Params& consensusParams = Params().GetConsensus();
     for (const CBlockHeader& header : headers) {
         CBlockIndex dummy(header);
-        total_work += GetBlockProof(dummy);
+        total_work += GetBlockProof(dummy, consensusParams);
     }
     return total_work;
 }
@@ -3470,9 +3473,14 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     AssertLockHeld(::cs_main);
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
+    const Consensus::Params& consensusParams = chainman.GetConsensus();
+
+    // Check algorithm
+    const int algoNum = GetAlgo(block.nVersion);
+    if (algoNum != ALGO_SCRYPT && nHeight < consensusParams.nMultiAlgoStartBlock)
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-algomode", "algorithm not allowed");
 
     // Check proof of work
-    const Consensus::Params& consensusParams = chainman.GetConsensus();
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 

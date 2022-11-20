@@ -6,6 +6,7 @@
 #include <primitives/block.h>
 
 #include <hash.h>
+#include <multialgo.h>
 #include <tinyformat.h>
 
 uint256 CBlockHeader::GetHash() const
@@ -15,7 +16,16 @@ uint256 CBlockHeader::GetHash() const
 
 uint256 CBlockHeader::GetPoWHash() const
 {
-    return scrypt_1024_1_1_256(*this);
+    const int algo = GetAlgo(nVersion);
+
+    switch (algo) {
+        case ALGO_SCRYPT:
+            return scrypt_1024_1_1_256(*this);
+        case ALGO_UNKNOWN:
+            return ArithToUint256(~arith_uint256(0));
+    }
+    assert(false);
+    return GetHash();
 }
 
 std::string CBlock::ToString() const

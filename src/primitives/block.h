@@ -6,6 +6,7 @@
 #ifndef BITCOIN_PRIMITIVES_BLOCK_H
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
+#include <arith_uint256.h>
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <uint256.h>
