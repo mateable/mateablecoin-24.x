@@ -21,6 +21,8 @@ uint256 CBlockHeader::GetPoWHash() const
     switch (algo) {
         case ALGO_SCRYPT:
             return scrypt_1024_1_1_256(*this);
+        case ALGO_YESCRYPT:
+            return yescrypt(*this);
         case ALGO_UNKNOWN:
             return ArithToUint256(~arith_uint256(0));
     }
