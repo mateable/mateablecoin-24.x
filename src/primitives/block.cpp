@@ -25,6 +25,8 @@ uint256 CBlockHeader::GetPoWHash() const
             return yescrypt(*this);
         case ALGO_WHIRLPOOL:
             return whirlpool(*this);
+        case ALGO_GHOSTRIDER:
+            return ghostrider(*this);
         case ALGO_UNKNOWN:
             return ArithToUint256(~arith_uint256(0));
     }

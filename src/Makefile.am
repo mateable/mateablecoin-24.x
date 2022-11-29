@@ -543,7 +543,37 @@ crypto_libbitcoin_crypto_base_la_SOURCES = \
   crypto/yescrypt/yescrypt.c \
   crypto/yescrypt/yescrypt-best.c \
   crypto/whirlpool/whirlpool.c \
-  crypto/whirlpool/sph_whirlpool.c
+  crypto/whirlpool/sph_whirlpool.c \
+  crypto/ghostrider/cryptonote/int-util.h \
+  crypto/ghostrider/cryptonote/aesb.c \
+  crypto/ghostrider/cryptonote/c_blake256.c \
+  crypto/ghostrider/cryptonote/c_groestl.c \
+  crypto/ghostrider/cryptonote/c_jh.c \
+  crypto/ghostrider/cryptonote/c_keccak.c \
+  crypto/ghostrider/cryptonote/c_skein.c \
+  crypto/ghostrider/cryptonote/slow-hash.c \
+  crypto/ghostrider/cryptonote/hash-ops.c \
+  crypto/ghostrider/cryptonote/oaes_lib.c \
+  crypto/ghostrider/cryptonote/wild_keccak.cpp \
+  crypto/ghostrider/sph/aes_helper.c \
+  crypto/ghostrider/sph/blake.c \
+  crypto/ghostrider/sph/bmw.c \
+  crypto/ghostrider/sph/cubehash.c \
+  crypto/ghostrider/sph/echo.c \
+  crypto/ghostrider/sph/groestl.c \
+  crypto/ghostrider/sph/jh.c \
+  crypto/ghostrider/sph/keccak.c \
+  crypto/ghostrider/sph/luffa.c \
+  crypto/ghostrider/sph/shavite.c \
+  crypto/ghostrider/sph/simd.c \
+  crypto/ghostrider/sph/skein.c \
+  crypto/ghostrider/sph/sph_hamsi.c \
+  crypto/ghostrider/sph/sph_hamsi_helper.c \
+  crypto/ghostrider/sph/sph_fugue.c \
+  crypto/ghostrider/sph/sph_shabal.c \
+  crypto/ghostrider/sph/sph_sha2.c \
+  crypto/ghostrider/sph/sph_sha512.c \
+  crypto/ghostrider/hash_selection.cpp
 
 if USE_ASM
 crypto_libbitcoin_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
