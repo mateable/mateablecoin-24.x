@@ -11,6 +11,7 @@
 #include <crypto/scrypt.h>
 #include <crypto/sha256.h>
 #include <crypto/yescrypt/yescrypt.h>
+#include <crypto/whirlpool/whirlpool.h>
 #include <prevector.h>
 #include <serialize.h>
 #include <uint256.h>
@@ -225,6 +226,15 @@ uint256 yescrypt(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERS
 {
     uint256 out;
     yescrypt_hash((const char*)&obj, reinterpret_cast<char*>(&out));
+    return out;
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 whirlpool(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    whirlpool_hash((const char*)&obj, reinterpret_cast<char*>(&out), 80);
     return out;
 }
 

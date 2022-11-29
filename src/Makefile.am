@@ -541,7 +541,9 @@ crypto_libbitcoin_crypto_base_la_SOURCES = \
   crypto/siphash.h \
   crypto/yescrypt/sha256_Y.c \
   crypto/yescrypt/yescrypt.c \
-  crypto/yescrypt/yescrypt-best.c
+  crypto/yescrypt/yescrypt-best.c \
+  crypto/whirlpool/whirlpool.c \
+  crypto/whirlpool/sph_whirlpool.c
 
 if USE_ASM
 crypto_libbitcoin_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
