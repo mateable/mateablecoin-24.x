@@ -10,6 +10,7 @@
 #include <crypto/ripemd160.h>
 #include <crypto/scrypt.h>
 #include <crypto/sha256.h>
+#include <crypto/balloon/balloon.h>
 #include <crypto/yescrypt/yescrypt.h>
 #include <crypto/whirlpool/whirlpool.h>
 #include <crypto/ghostrider/ghostrider.h>
@@ -246,6 +247,14 @@ uint256 ghostrider(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VE
     return ghostrider_hash((char*)&(obj.nVersion), (char*)&((&(obj.nNonce))[1]), obj.hashPrevBlock);
 }
 
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 balloon(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    balloon_hash((const unsigned char*)&obj, reinterpret_cast<unsigned char*>(&out), 80);
+    return out;
+}
 
 /** Single-SHA256 a 32-byte input (represented as uint256). */
 [[nodiscard]] uint256 SHA256Uint256(const uint256& input);
