@@ -628,6 +628,8 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/params.h \
   consensus/tx_check.cpp \
   consensus/validation.h \
+  crypto/algo_sanity.cpp \
+  crypto/algo_sanity.h \
   hash.cpp \
   hash.h \
   multialgo.cpp \

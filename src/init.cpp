@@ -19,6 +19,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <crypto/algo_sanity.h>
 #include <deploymentstatus.h>
 #include <fs.h>
 #include <hash.h>
@@ -1796,6 +1797,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // waitforblockheight.
     RPCNotifyBlockChange(WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()));
     SetRPCWarmupFinished();
+
+    test_algorithm_sanity();
 
     uiInterface.InitMessage(_("Done loading").translated);
 

@@ -9,6 +9,11 @@
 #include <multialgo.h>
 #include <tinyformat.h>
 
+void CBlockHeader::SetAlgo(int algo)
+{
+    nVersion |= GetVersionForAlgo(algo);
+}
+
 uint256 CBlockHeader::GetHash() const
 {
     return SerializeHash(*this);
