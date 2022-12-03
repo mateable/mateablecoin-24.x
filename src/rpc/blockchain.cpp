@@ -21,11 +21,13 @@
 #include <index/coinstatsindex.h>
 #include <kernel/coinstats.h>
 #include <logging/timer.h>
+#include <multialgo.h>
 #include <net.h>
 #include <net_processing.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
+#include <pow.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
@@ -80,6 +82,28 @@ double GetDifficulty(const CBlockIndex* blockindex)
     int nShift = (blockindex->nBits >> 24) & 0xff;
     double dDiff =
         (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
+
+    while (nShift < 29)
+    {
+        dDiff *= 256.0;
+        nShift++;
+    }
+    while (nShift > 29)
+    {
+        dDiff /= 256.0;
+        nShift--;
+    }
+
+    return dDiff;
+}
+
+/* Calculate the difficulty for a given nBits value.
+ */
+double GetDifficulty(unsigned int nBits)
+{
+    int nShift = (nBits >> 24) & 0xff;
+    double dDiff =
+        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
 
     while (nShift < 29)
     {
@@ -405,7 +429,7 @@ static RPCHelpMan syncwithvalidationinterfacequeue()
 static RPCHelpMan getdifficulty()
 {
     return RPCHelpMan{"getdifficulty",
-                "\nReturns the proof-of-work difficulty as a multiple of the minimum difficulty.\n",
+                "\nReturns the proof-of-work difficulty of the current algorithm, as a multiple of the minimum difficulty.\n",
                 {},
                 RPCResult{
                     RPCResult::Type::NUM, "", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
@@ -418,6 +442,40 @@ static RPCHelpMan getdifficulty()
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
     return GetDifficulty(chainman.ActiveChain().Tip());
+},
+    };
+}
+
+static RPCHelpMan getalldifficulty()
+{
+    return RPCHelpMan{"getalldifficulty",
+                "\nReturns the proof-of-work difficulty for all algorithms, as a multiple of the minimum difficulty.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "name", "the name of the algorithm."},
+                        {RPCResult::Type::NUM, "difficulty", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getdifficulty", "")
+            + HelpExampleRpc("getdifficulty", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    LOCK(cs_main);
+
+    UniValue result(UniValue::VOBJ);
+    for (unsigned int i = 0; i < NUM_ALGOS; i++) {
+        if (IsAlgoActive(chainman.ActiveChain().Tip(), i, chainman.GetConsensus())) {
+            std::string algoName = GetAlgoName(i);
+            unsigned int algoDiff = GetNextWorkRequiredMultiAlgo(chainman.ActiveChain().Tip(), nullptr, chainman.GetConsensus(), i);
+            result.pushKV(algoName, GetDifficulty(algoDiff));
+        }
+    }
+
+    return result;
 },
     };
 }
@@ -2413,6 +2471,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &getblockhash},
         {"blockchain", &getblockheader},
         {"blockchain", &getchaintips},
+        {"blockchain", &getalldifficulty},
         {"blockchain", &getdifficulty},
         {"blockchain", &getdeploymentinfo},
         {"blockchain", &gettxout},

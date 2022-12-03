@@ -123,6 +123,15 @@ public:
     explicit uint256(const std::vector<unsigned char>& vch) : base_blob<256>(vch) {}
     static const uint256 ZERO;
     static const uint256 ONE;
+
+    int GetNibble(int index) const
+    {
+        index = 63 - index;
+        if (index % 2 == 1) {
+            return (m_data[index / 2] >> 4);
+        }
+        return (m_data[index / 2] & 0xf);
+    }
 };
 
 /* uint256 from const char *.
@@ -145,5 +154,20 @@ inline uint256 uint256S(const std::string& str)
     rv.SetHex(str);
     return rv;
 }
+
+/** 512-bit unsigned big integer. */
+class uint512 : public base_blob<512> {
+public:
+    uint512() {}
+    uint512(const base_blob<512>& b) : base_blob<512>(b) {}
+    explicit uint512(const std::vector<unsigned char>& vch) : base_blob<512>(vch) {}
+
+    uint256 trim256() const
+    {
+        uint256 result;
+        memcpy((void*)&result, (void*)m_data, 32);
+        return result;
+    }
+};
 
 #endif // BITCOIN_UINT256_H

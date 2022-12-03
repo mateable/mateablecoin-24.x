@@ -498,7 +498,7 @@ libbitcoin_wallet_tool_a_SOURCES = \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
-crypto_libbitcoin_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS)
+crypto_libbitcoin_crypto_base_la_CPPFLAGS = $(AM_CPPFLAGS) $(SSL_CFLAGS)
 
 # Specify -static in both CXXFLAGS and LDFLAGS so libtool will only build a
 # static version of this library. We don't need a dynamic version, and a dynamic
@@ -538,7 +538,43 @@ crypto_libbitcoin_crypto_base_la_SOURCES = \
   crypto/sha512.cpp \
   crypto/sha512.h \
   crypto/siphash.cpp \
-  crypto/siphash.h
+  crypto/siphash.h \
+  crypto/yescrypt/sha256_Y.c \
+  crypto/yescrypt/yescrypt.c \
+  crypto/yescrypt/yescrypt-best.c \
+  crypto/whirlpool/whirlpool.c \
+  crypto/whirlpool/sph_whirlpool.c \
+  crypto/ghostrider/cryptonote/int-util.h \
+  crypto/ghostrider/cryptonote/aesb.c \
+  crypto/ghostrider/cryptonote/c_blake256.c \
+  crypto/ghostrider/cryptonote/c_groestl.c \
+  crypto/ghostrider/cryptonote/c_jh.c \
+  crypto/ghostrider/cryptonote/c_keccak.c \
+  crypto/ghostrider/cryptonote/c_skein.c \
+  crypto/ghostrider/cryptonote/slow-hash.c \
+  crypto/ghostrider/cryptonote/hash-ops.c \
+  crypto/ghostrider/cryptonote/oaes_lib.c \
+  crypto/ghostrider/cryptonote/wild_keccak.cpp \
+  crypto/ghostrider/sph/aes_helper.c \
+  crypto/ghostrider/sph/blake.c \
+  crypto/ghostrider/sph/bmw.c \
+  crypto/ghostrider/sph/cubehash.c \
+  crypto/ghostrider/sph/echo.c \
+  crypto/ghostrider/sph/groestl.c \
+  crypto/ghostrider/sph/jh.c \
+  crypto/ghostrider/sph/keccak.c \
+  crypto/ghostrider/sph/luffa.c \
+  crypto/ghostrider/sph/shavite.c \
+  crypto/ghostrider/sph/simd.c \
+  crypto/ghostrider/sph/skein.c \
+  crypto/ghostrider/sph/sph_hamsi.c \
+  crypto/ghostrider/sph/sph_hamsi_helper.c \
+  crypto/ghostrider/sph/sph_fugue.c \
+  crypto/ghostrider/sph/sph_shabal.c \
+  crypto/ghostrider/sph/sph_sha2.c \
+  crypto/ghostrider/sph/sph_sha512.c \
+  crypto/ghostrider/hash_selection.cpp \
+  crypto/balloon/balloon.cpp
 
 if USE_ASM
 crypto_libbitcoin_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
@@ -592,8 +628,12 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/params.h \
   consensus/tx_check.cpp \
   consensus/validation.h \
+  crypto/algo_sanity.cpp \
+  crypto/algo_sanity.h \
   hash.cpp \
   hash.h \
+  multialgo.cpp \
+  multialgo.h \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \
@@ -739,7 +779,7 @@ bitcoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoin_bin_ldadd += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
+bitcoin_bin_ldadd += $(BDB_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
 
 bitcoind_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
 bitcoind_CPPFLAGS = $(bitcoin_bin_cppflags)
@@ -769,7 +809,7 @@ bitcoin_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-bitcoin_cli_LDADD += $(EVENT_LIBS)
+bitcoin_cli_LDADD += $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
@@ -965,8 +1005,8 @@ include_HEADERS = script/bitcoinconsensus.h
 libbitcoinconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
 
 libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1)
-libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
+libbitcoinconsensus_la_LIBADD = $(LIBSECP256K1) $(CRYPTO_LIBS)
+libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL $(SSL_CFLAGS)
 libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif

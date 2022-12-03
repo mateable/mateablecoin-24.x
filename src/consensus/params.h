@@ -110,6 +110,18 @@ struct Params {
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
+
+    /** Multialgo parameters */
+    int nMultiAlgoStartBlock;
+    int64_t nMultiAlgoTargetSpacing;
+    int64_t nAveragingInterval;
+    int64_t nAveragingTargetTimespan;
+    int64_t nMaxAdjustUp;
+    int64_t nMaxAdjustDown;
+    int64_t nMinActualTimespan;
+    int64_t nMaxActualTimespan;
+    int64_t nLocalTargetAdjustment;
+
     std::chrono::seconds PowTargetSpacing() const
     {
         return std::chrono::seconds{nPowTargetSpacing};

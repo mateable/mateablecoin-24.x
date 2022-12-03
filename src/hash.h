@@ -10,6 +10,10 @@
 #include <crypto/ripemd160.h>
 #include <crypto/scrypt.h>
 #include <crypto/sha256.h>
+#include <crypto/balloon/balloon.h>
+#include <crypto/yescrypt/yescrypt.h>
+#include <crypto/whirlpool/whirlpool.h>
+#include <crypto/ghostrider/ghostrider.h>
 #include <prevector.h>
 #include <serialize.h>
 #include <uint256.h>
@@ -215,6 +219,40 @@ uint256 scrypt_1024_1_1_256(const T& obj, int nType=SER_GETHASH, int nVersion=PR
 {
     uint256 out;
     scrypt_1024_1_1_256(obj, reinterpret_cast<char*>(&out));
+    return out;
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 yescrypt(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    yescrypt_hash((const char*)&obj, reinterpret_cast<char*>(&out));
+    return out;
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 whirlpool(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    whirlpool_hash((const char*)&obj, reinterpret_cast<char*>(&out), 80);
+    return out;
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 ghostrider(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    return ghostrider_hash((char*)&(obj.nVersion), (char*)&((&(obj.nNonce))[1]), obj.hashPrevBlock);
+}
+
+/** Compute the 256-bit powhash of an object's serialization. */
+template<typename T>
+uint256 balloon(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+{
+    uint256 out;
+    balloon_hash((const unsigned char*)&obj, reinterpret_cast<unsigned char*>(&out), 80);
     return out;
 }
 

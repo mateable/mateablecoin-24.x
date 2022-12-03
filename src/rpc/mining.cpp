@@ -36,6 +36,7 @@
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <wallet/rpc/util.h>
 #include <warnings.h>
 
 #include <memory>
@@ -144,7 +145,7 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
 {
     UniValue blockHashes(UniValue::VARR);
     while (nGenerate > 0 && !ShutdownRequested()) {
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler{chainman.ActiveChainstate(), &mempool}.CreateNewBlock(coinbase_script));
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler{chainman.ActiveChainstate(), &mempool}.CreateNewBlock(coinbase_script, defaultAlgo));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -354,7 +355,7 @@ static RPCHelpMan generateblock()
     {
         LOCK(cs_main);
 
-        std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler{chainman.ActiveChainstate(), nullptr}.CreateNewBlock(coinbase_script));
+        std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler{chainman.ActiveChainstate(), nullptr}.CreateNewBlock(coinbase_script, defaultAlgo));
         if (!blocktemplate) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         }
@@ -498,6 +499,48 @@ static std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
         s.insert(s.begin(), '!');
     }
     return s;
+}
+
+static RPCHelpMan getalgo()
+{
+    return RPCHelpMan{"getalgo",
+                "\nReturns the algorithm currently set for mining/getblocktemplate.\n"
+                "Typically set to scrypt by default.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::STR, "", "The current algorithm"},
+                RPCExamples{
+                    HelpExampleCli("getalgo", "")
+            + HelpExampleRpc("getalgo", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    return GetAlgoName(defaultAlgo);
+},
+    };
+}
+
+static RPCHelpMan setalgo()
+{
+    return RPCHelpMan{"setalgo",
+        "\nSet the default algorithm for mining/getblocktemplate.\n",
+         {
+             {"algo", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the algorithm."}
+         },
+         RPCResult{
+             RPCResult::Type::STR, "", "The current algorithm"},
+         RPCExamples{
+             HelpExampleCli("setalgo", "scrypt")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const std::string algo_name{request.params[0].get_str()};
+
+    defaultAlgo = MatchAlgoName(algo_name);
+
+    return GetAlgoName(defaultAlgo);
+},
+    };
 }
 
 static RPCHelpMan getblocktemplate()
@@ -655,6 +698,16 @@ static RPCHelpMan getblocktemplate()
     if (strMode != "template")
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
+    // check to see if user has provided algorithm name, if not specified will instead use defaultAlgo (-algo=<name>)
+    int algoNum;
+    std::string algoName;
+    if (!request.params[1].isNull()) {
+        algoName = wallet::LabelFromValue(request.params[1]);
+        algoNum = MatchAlgoName(algoName);
+    } else {
+        algoNum = defaultAlgo;
+    }
+
     if (!chainman.GetParams().IsTestChain()) {
         const CConnman& connman = EnsureConnman(node);
         if (connman.GetNodeCount(ConnectionDirection::Both) == 0) {
@@ -745,7 +798,7 @@ static RPCHelpMan getblocktemplate()
 
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(scriptDummy);
+        pblocktemplate = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(scriptDummy, algoNum);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -1039,6 +1092,8 @@ void RegisterMiningRPCCommands(CRPCTable& t)
         {"mining", &getnetworkhashps},
         {"mining", &getmininginfo},
         {"mining", &prioritisetransaction},
+        {"mining", &getalgo},
+        {"mining", &setalgo},
         {"mining", &getblocktemplate},
         {"mining", &submitblock},
         {"mining", &submitheader},

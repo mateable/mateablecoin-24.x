@@ -19,6 +19,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <crypto/algo_sanity.h>
 #include <deploymentstatus.h>
 #include <fs.h>
 #include <hash.h>
@@ -452,6 +453,7 @@ void SetupServerArgs(ArgsManager& argsman)
                  ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 
     argsman.AddArg("-addnode=<ip>", strprintf("Add a node to connect to and attempt to keep the connection open (see the addnode RPC help for more info). This option can be specified multiple times to add multiple nodes; connections are limited to %u at a time and are counted separately from the -maxconnections limit.", MAX_ADDNODE_CONNECTIONS), ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::CONNECTION);
+    argsman.AddArg("-algo=<name>", strprintf("Specify the default algorithm for mining/getblocktemplate requests (default: %s).", GetAlgoName(ALGO_SCRYPT)), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-asmap=<file>", strprintf("Specify asn mapping used for bucketing of the peers (default: %s). Relative paths will be prefixed by the net-specific datadir location.", DEFAULT_ASMAP_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-bantime=<n>", strprintf("Default duration (in seconds) of manually configured bans (default: %u)", DEFAULT_MISBEHAVING_BANTIME), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-bind=<addr>[:<port>][=onion]", strprintf("Bind to given address and always listen on it (default: 0.0.0.0). Use [host]:port notation for IPv6. Append =onion to tag any incoming connections to that address and port as incoming Tor connections (default: 127.0.0.1:%u=onion, testnet: 127.0.0.1:%u=onion, signet: 127.0.0.1:%u=onion, regtest: 127.0.0.1:%u=onion)", defaultBaseParams->OnionServiceTargetPort(), testnetBaseParams->OnionServiceTargetPort(), signetBaseParams->OnionServiceTargetPort(), regtestBaseParams->OnionServiceTargetPort()), ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::CONNECTION);
@@ -1190,6 +1192,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
+    /* Set the default algorithm, noting this can be changed after startup
+     * via a toggle in rpc/mining.cpp to avoid the need to restart client.
+     */
+    std::string algoName = args.GetArg("-algo", GetAlgoName(ALGO_SCRYPT));
+    defaultAlgo = MatchAlgoName(algoName);
+    LogPrintf("Using %s as default algorithm\n", GetAlgoName(defaultAlgo));
+
     // ********************************************************* Step 5: verify wallet database integrity
     for (const auto& client : node.chain_clients) {
         if (!client->verify()) {
@@ -1788,6 +1797,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // waitforblockheight.
     RPCNotifyBlockChange(WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()));
     SetRPCWarmupFinished();
+
+    test_algorithm_sanity();
 
     uiInterface.InitMessage(_("Done loading").translated);
 

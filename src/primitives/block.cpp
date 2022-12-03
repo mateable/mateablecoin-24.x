@@ -6,7 +6,13 @@
 #include <primitives/block.h>
 
 #include <hash.h>
+#include <multialgo.h>
 #include <tinyformat.h>
+
+void CBlockHeader::SetAlgo(int algo)
+{
+    nVersion |= GetVersionForAlgo(algo);
+}
 
 uint256 CBlockHeader::GetHash() const
 {
@@ -15,7 +21,24 @@ uint256 CBlockHeader::GetHash() const
 
 uint256 CBlockHeader::GetPoWHash() const
 {
-    return scrypt_1024_1_1_256(*this);
+    const int algo = GetAlgo(nVersion);
+
+    switch (algo) {
+        case ALGO_SCRYPT:
+            return scrypt_1024_1_1_256(*this);
+        case ALGO_YESCRYPT:
+            return yescrypt(*this);
+        case ALGO_WHIRLPOOL:
+            return whirlpool(*this);
+        case ALGO_GHOSTRIDER:
+            return ghostrider(*this);
+        case ALGO_BALLOON:
+            return balloon(*this);
+        case ALGO_UNKNOWN:
+            return ArithToUint256(~arith_uint256(0));
+    }
+    assert(false);
+    return GetHash();
 }
 
 std::string CBlock::ToString() const
