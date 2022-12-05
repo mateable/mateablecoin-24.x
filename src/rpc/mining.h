@@ -5,7 +5,7 @@
 #ifndef BITCOIN_RPC_MINING_H
 #define BITCOIN_RPC_MINING_H
 
-/** Default max iterations to try in RPC generatetodescriptor, generatetoaddress, and generateblock. */
-static const uint64_t DEFAULT_MAX_TRIES{1000000};
+/** Default max timeout whilst mining in RPC generatetodescriptor, generatetoaddress, and generateblock. */
+static const uint64_t DEFAULT_MAX_TIMEOUT{60};
 
 #endif // BITCOIN_RPC_MINING_H
