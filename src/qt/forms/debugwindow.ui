@@ -308,27 +308,37 @@
         </widget>
        </item>
        <item row="12" column="0">
-        <widget class="QLabel" name="labelMempoolTitle">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
+        <widget class="QLabel" name="lastBlockHashLabel">
+         <property name="text">
+          <string>Last block hash</string>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="1">
+        <widget class="QLabel" name="lastBlockHash">
+         <property name="cursor">
+          <cursorShape>IBeamCursor</cursorShape>
          </property>
          <property name="text">
-          <string>Memory Pool</string>
+          <string>N/A</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
          </property>
         </widget>
        </item>
        <item row="13" column="0">
-        <widget class="QLabel" name="labelNumberOfTransactions">
+        <widget class="QLabel" name="lastBlockPowHashLabel">
          <property name="text">
-          <string>Current number of transactions</string>
+          <string>Last block pow hash</string>
          </property>
         </widget>
        </item>
        <item row="13" column="1">
-        <widget class="QLabel" name="mempoolNumberTxs">
+        <widget class="QLabel" name="lastBlockPowHash">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>
@@ -344,13 +354,72 @@
         </widget>
        </item>
        <item row="14" column="0">
+        <widget class="QLabel" name="lastBlockPowAlgoLabel">
+         <property name="text">
+          <string>Last block pow algorithm</string>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="1">
+        <widget class="QLabel" name="lastBlockPowAlgo">
+         <property name="cursor">
+          <cursorShape>IBeamCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>N/A</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="0">
+        <widget class="QLabel" name="labelMempoolTitle">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Mempool</string>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="0">
+        <widget class="QLabel" name="labelNumberOfTransactions">
+         <property name="text">
+          <string>Current number of transactions</string>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="1">
+        <widget class="QLabel" name="mempoolNumberTxs">
+         <property name="cursor">
+          <cursorShape>IBeamCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>N/A</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="0">
         <widget class="QLabel" name="labelMemoryUsage">
          <property name="text">
           <string>Memory usage</string>
          </property>
         </widget>
        </item>
-       <item row="14" column="1">
+       <item row="17" column="1">
         <widget class="QLabel" name="mempoolSize">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>

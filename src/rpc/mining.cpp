@@ -116,16 +116,21 @@ static RPCHelpMan getnetworkhashps()
     };
 }
 
-static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& max_tries, uint256& block_hash)
+static bool HasExceededTimeout(uint64_t& start_time, uint64_t& max_timeout)
+{
+    return (TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime()) - start_time) >= max_timeout;
+}
+
+static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& max_timeout, uint256& block_hash)
 {
     block_hash.SetNull();
     block.hashMerkleRoot = BlockMerkleRoot(block);
 
-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetHash(), block.nBits, chainman.GetConsensus()) && !ShutdownRequested()) {
+    uint64_t start_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
+    while (!HasExceededTimeout(start_time, max_timeout) && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetPoWHash(), block.nBits, chainman.GetConsensus()) && !ShutdownRequested()) {
         ++block.nNonce;
-        --max_tries;
     }
-    if (max_tries == 0 || ShutdownRequested()) {
+    if (HasExceededTimeout(start_time, max_timeout) || ShutdownRequested()) {
         return false;
     }
     if (block.nNonce == std::numeric_limits<uint32_t>::max()) {
@@ -141,7 +146,7 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
     return true;
 }
 
-static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
+static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTimeout)
 {
     UniValue blockHashes(UniValue::VARR);
     while (nGenerate > 0 && !ShutdownRequested()) {
@@ -151,7 +156,7 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
         CBlock *pblock = &pblocktemplate->block;
 
         uint256 block_hash;
-        if (!GenerateBlock(chainman, *pblock, nMaxTries, block_hash)) {
+        if (!GenerateBlock(chainman, *pblock, nMaxTimeout, block_hash)) {
             break;
         }
 
@@ -205,7 +210,7 @@ static RPCHelpMan generatetodescriptor()
         {
             {"num_blocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many blocks are generated."},
             {"descriptor", RPCArg::Type::STR, RPCArg::Optional::NO, "The descriptor to send the newly generated bitcoin to."},
-            {"maxtries", RPCArg::Type::NUM, RPCArg::Default{DEFAULT_MAX_TRIES}, "How many iterations to try."},
+            {"maxtimeout", RPCArg::Type::NUM, RPCArg::Default{DEFAULT_MAX_TIMEOUT}, "How long to attempt mining a block before returning."},
         },
         RPCResult{
             RPCResult::Type::ARR, "", "hashes of blocks generated",
@@ -218,7 +223,7 @@ static RPCHelpMan generatetodescriptor()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const int num_blocks{request.params[0].getInt<int>()};
-    const uint64_t max_tries{request.params[2].isNull() ? DEFAULT_MAX_TRIES : request.params[2].getInt<int>()};
+    const uint64_t max_timeout{request.params[2].isNull() ? DEFAULT_MAX_TIMEOUT : request.params[2].getInt<int>()};
 
     CScript coinbase_script;
     std::string error;
@@ -230,7 +235,7 @@ static RPCHelpMan generatetodescriptor()
     const CTxMemPool& mempool = EnsureMemPool(node);
     ChainstateManager& chainman = EnsureChainman(node);
 
-    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries);
+    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_timeout);
 },
     };
 }
@@ -249,7 +254,7 @@ static RPCHelpMan generatetoaddress()
          {
              {"nblocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many blocks are generated."},
              {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to send the newly generated bitcoin to."},
-             {"maxtries", RPCArg::Type::NUM, RPCArg::Default{DEFAULT_MAX_TRIES}, "How many iterations to try."},
+             {"maxtries", RPCArg::Type::NUM, RPCArg::Default{DEFAULT_MAX_TIMEOUT}, "How long to attempt mining a block before returning."},
          },
          RPCResult{
              RPCResult::Type::ARR, "", "hashes of blocks generated",
@@ -265,7 +270,7 @@ static RPCHelpMan generatetoaddress()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const int num_blocks{request.params[0].getInt<int>()};
-    const uint64_t max_tries{request.params[2].isNull() ? DEFAULT_MAX_TRIES : request.params[2].getInt<int>()};
+    const uint64_t max_timeout{request.params[2].isNull() ? DEFAULT_MAX_TIMEOUT : request.params[2].getInt<int>()};
 
     CTxDestination destination = DecodeDestination(request.params[1].get_str());
     if (!IsValidDestination(destination)) {
@@ -278,7 +283,7 @@ static RPCHelpMan generatetoaddress()
 
     CScript coinbase_script = GetScriptForDestination(destination);
 
-    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_tries);
+    return generateBlocks(chainman, mempool, coinbase_script, num_blocks, max_timeout);
 },
     };
 }
@@ -378,9 +383,9 @@ static RPCHelpMan generateblock()
     }
 
     uint256 block_hash;
-    uint64_t max_tries{DEFAULT_MAX_TRIES};
+    uint64_t max_timeout{DEFAULT_MAX_TIMEOUT};
 
-    if (!GenerateBlock(chainman, block, max_tries, block_hash) || block_hash.IsNull()) {
+    if (!GenerateBlock(chainman, block, max_timeout, block_hash) || block_hash.IsNull()) {
         throw JSONRPCError(RPC_MISC_ERROR, "Failed to make block.");
     }
 

@@ -69,6 +69,8 @@ public:
     int getNumConnections(unsigned int flags = CONNECTIONS_ALL) const;
     int getNumBlocks() const;
     uint256 getBestBlockHash() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
+    uint256 getBestBlockPowHash() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
+    std::string getBestBlockPowAlgo() EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
     int getHeaderTipHeight() const;
     int64_t getHeaderTipTime() const;
 
@@ -93,6 +95,8 @@ public:
 
     Mutex m_cached_tip_mutex;
     uint256 m_cached_tip_blocks GUARDED_BY(m_cached_tip_mutex){};
+    uint256 m_cached_pow_blocks GUARDED_BY(m_cached_tip_mutex){};
+    std::string m_cached_algo_blocks GUARDED_BY(m_cached_tip_mutex){};
 
 private:
     interfaces::Node& m_node;
@@ -117,7 +121,7 @@ private:
 
 Q_SIGNALS:
     void numConnectionsChanged(int count);
-    void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, SyncType header, SynchronizationState sync_state);
+    void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, const QString& blockPowHash, const QString& blockPowAlgo, double nVerificationProgress, SyncType header, SynchronizationState sync_state);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
     void networkActiveChanged(bool networkActive);
     void alertsChanged(const QString &warnings);

@@ -1637,6 +1637,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         if (tip_info) {
             tip_info->block_height = chain_active_height;
             tip_info->block_time = chainman.ActiveChain().Tip() ? chainman.ActiveChain().Tip()->GetBlockTime() : chainman.GetParams().GenesisBlock().GetBlockTime();
+            tip_info->block_hash = chainman.ActiveChain().Tip() ? chainman.ActiveChain().Tip()->GetBlockHash() : chainman.GetParams().GenesisBlock().GetBlockHeader().GetHash();
+            tip_info->block_powhash = chainman.ActiveChain().Tip() ? chainman.ActiveChain().Tip()->GetBlockPoWHash() : chainman.GetParams().GenesisBlock().GetBlockHeader().GetPoWHash();
+            tip_info->block_powalgo = chainman.ActiveChain().Tip() ? GetAlgoNameByIndex(chainman.ActiveChain().Tip()) : GetAlgoNameByIndex(nullptr);
             tip_info->verification_progress = GuessVerificationProgress(chainman.GetParams().TxData(), chainman.ActiveChain().Tip());
         }
         if (tip_info && chainman.m_best_header) {

@@ -53,7 +53,7 @@ public:
         return RPCParseCommandLine(&node, strResult, strCommand, true, pstrFilteredOut, wallet_model);
     }
 
-    void setClientModel(ClientModel *model = nullptr, int bestblock_height = 0, int64_t bestblock_date = 0, double verification_progress = 0.0);
+    void setClientModel(ClientModel *model = nullptr, int bestblock_height = 0, int64_t bestblock_date = 0, uint256 bestblock_hash = uint256(), uint256 bestblockpow_hash = uint256(), std::string bestblockpow_algo = "", double verification_progress = 0.0);
 
 #ifdef ENABLE_WALLET
     void addWallet(WalletModel* const walletModel);
@@ -121,7 +121,7 @@ public Q_SLOTS:
     /** Set network state shown in the UI */
     void setNetworkActive(bool networkActive);
     /** Set number of blocks and last block date shown in the UI */
-    void setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, SyncType synctype);
+    void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, const QString& blockPowHash, const QString& blockPowAlgo, double nVerificationProgress, SyncType synctype);
     /** Set size (number of transactions and memory usage) of the mempool in the UI */
     void setMempoolSize(long numberOfTxs, size_t dynUsage);
     /** Go forward or back in history */

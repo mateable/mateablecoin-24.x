@@ -50,6 +50,9 @@ struct BlockAndHeaderTipInfo
 {
     int block_height;
     int64_t block_time;
+    uint256 block_hash;
+    uint256 block_powhash;
+    std::string block_powalgo;
     int header_height;
     int64_t header_time;
     double verification_progress;
@@ -168,6 +171,12 @@ public:
     //! Get best block hash.
     virtual uint256 getBestBlockHash() = 0;
 
+    //! Get best block pow hash.
+    virtual uint256 getBestBlockPowHash() = 0;
+
+    //! Get best block pow algo.
+    virtual std::string getBestBlockPowAlgo() = 0;
+
     //! Get last block time.
     virtual int64_t getLastBlockTime() = 0;
 
@@ -277,6 +286,8 @@ struct BlockTip {
     int block_height;
     int64_t block_time;
     uint256 block_hash;
+    uint256 block_powhash;
+    std::string block_powalgo;
 };
 
 } // namespace interfaces

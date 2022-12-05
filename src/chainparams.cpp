@@ -143,7 +143,7 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = {0x08, 0xf2, 0xc6, 0xff};
         base58Prefixes[EXT_SECRET_KEY] = {0x08, 0xf2, 0xc2, 0x6b};
 
-        bech32_hrp = "bc";
+        bech32_hrp = "mtb";
 
         // vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
@@ -183,20 +183,32 @@ public:
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.script_flag_exceptions.emplace( // BIP16 exception
             uint256S("0x00000000dd30457c001f4095d208cc1296b0eed002427aa599874af7a432b105"), SCRIPT_VERIFY_NONE);
-        consensus.BIP34Height = 21111;
-        consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
-        consensus.BIP65Height = 581885; // 00000000007f6655f22f98e72ed80d8b06dc761d5da09df0fa1dc4be4f861eb6
-        consensus.BIP66Height = 330776; // 000000002104c8c45e99a8853285a3b592602a3ccde2b832481da85e9e4ba182
-        consensus.CSVHeight = 770112; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
-        consensus.SegwitHeight = 834624; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
-        consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
-        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.BIP34Height = 0;
+        consensus.BIP34Hash = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
+        consensus.BIP65Height = 0;
+        consensus.BIP66Height = 0;
+        consensus.CSVHeight = 0;
+        consensus.SegwitHeight = 0;
+        consensus.MinBIP9WarningHeight = 0;
+        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
-        consensus.fPowAllowMinDifficultyBlocks = true;
+        consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+        // Mateablecoin specific parameters
+        consensus.nMultiAlgoStartBlock = 0;
+        consensus.nAveragingInterval = 10;
+        consensus.nMultiAlgoTargetSpacing = 15 * NUM_ALGOS;
+        consensus.nMaxAdjustDown = 16;
+        consensus.nMaxAdjustUp = 8;
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nLocalTargetAdjustment = 4;
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
+
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
@@ -208,8 +220,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1628640000; // August 11th, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; // No activation delay
 
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000076f6e7cbd0beade5d20");
-        consensus.defaultAssumeValid = uint256S("0x0000000000000004877fa2d36316398528de4f347df2f8a96f76613a298ce060"); // 2344474
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
+        consensus.defaultAssumeValid = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
 
         pchMessageStart[0] = 0x0b;
         pchMessageStart[1] = 0x11;
@@ -220,26 +232,21 @@ public:
         m_assumed_blockchain_size = 42;
         m_assumed_chain_state_size = 2;
 
-        genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1658034247, 2000131976, 0x207fffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        //assert(consensus.hashGenesisBlock == uint256S("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"));
-        //assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+        assert(genesis.hashMerkleRoot == uint256S("0xd9578fe69963b3b99c1a61ba4a4a711699489cd9da6e40d36bb16446fe5565d6"));
+        assert(consensus.hashGenesisBlock == uint256S("0x79187eed6ed109bf172d0a57d4893e7c73c199df3f8d58235724db6e6607e758"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        // nodes with support for servicebits filtering should be at the top
-        vSeeds.emplace_back("testnet-seed.bitcoin.jonasschnelli.ch.");
-        vSeeds.emplace_back("seed.tbtc.petertodd.org.");
-        vSeeds.emplace_back("seed.testnet.bitcoin.sprovoost.nl.");
-        vSeeds.emplace_back("testnet-seed.bluematt.me."); // Just a static list of stable node(s), only supports x9
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,51);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,128);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,170);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
-        bech32_hrp = "tb";
+        bech32_hrp = "tmtb";
 
         // vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));
 
@@ -250,7 +257,6 @@ public:
 
         checkpointData = {
             {
-                {546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")},
             }
         };
 

@@ -148,6 +148,52 @@ uint256 ClientModel::getBestBlockHash()
     return m_cached_tip_blocks;
 }
 
+uint256 ClientModel::getBestBlockPowHash()
+{
+    uint256 tip{WITH_LOCK(m_cached_tip_mutex, return m_cached_pow_blocks)};
+
+    if (!tip.IsNull()) {
+        return tip;
+    }
+
+    // Lock order must be: first `cs_main`, then `m_cached_tip_mutex`.
+    // The following will lock `cs_main` (and release it), so we must not
+    // own `m_cached_tip_mutex` here.
+    tip = m_node.getBestBlockPowHash();
+
+    LOCK(m_cached_tip_mutex);
+    // We checked that `m_cached_tip_blocks` is not null above, but then we
+    // released the mutex `m_cached_tip_mutex`, so it could have changed in the
+    // meantime. Thus, check again.
+    if (m_cached_pow_blocks.IsNull()) {
+        m_cached_pow_blocks = tip;
+    }
+    return m_cached_pow_blocks;
+}
+
+std::string ClientModel::getBestBlockPowAlgo()
+{
+    std::string tip{WITH_LOCK(m_cached_tip_mutex, return m_cached_algo_blocks)};
+
+    if (!tip.empty()) {
+        return tip;
+    }
+
+    // Lock order must be: first `cs_main`, then `m_cached_tip_mutex`.
+    // The following will lock `cs_main` (and release it), so we must not
+    // own `m_cached_tip_mutex` here.
+    tip = m_node.getBestBlockPowAlgo();
+
+    LOCK(m_cached_tip_mutex);
+    // We checked that `m_cached_tip_blocks` is not null above, but then we
+    // released the mutex `m_cached_tip_mutex`, so it could have changed in the
+    // meantime. Thus, check again.
+    if (m_cached_algo_blocks.empty()) {
+        m_cached_algo_blocks = tip;
+    }
+    return m_cached_algo_blocks;
+}
+
 enum BlockSource ClientModel::getBlockSource() const
 {
     if (m_node.getReindex())
@@ -224,6 +270,8 @@ void ClientModel::TipChanged(SynchronizationState sync_state, interfaces::BlockT
     } else if (synctype == SyncType::BLOCK_SYNC) {
         m_cached_num_blocks = tip.block_height;
         WITH_LOCK(m_cached_tip_mutex, m_cached_tip_blocks = tip.block_hash;);
+        WITH_LOCK(m_cached_tip_mutex, m_cached_pow_blocks = tip.block_powhash;);
+        WITH_LOCK(m_cached_tip_mutex, m_cached_algo_blocks = tip.block_powalgo;);
     }
 
     // Throttle GUI notifications about (a) blocks during initial sync, and (b) both blocks and headers during reindex.
@@ -234,7 +282,7 @@ void ClientModel::TipChanged(SynchronizationState sync_state, interfaces::BlockT
         return;
     }
 
-    Q_EMIT numBlocksChanged(tip.block_height, QDateTime::fromSecsSinceEpoch(tip.block_time), verification_progress, synctype, sync_state);
+    Q_EMIT numBlocksChanged(tip.block_height, QDateTime::fromSecsSinceEpoch(tip.block_time), QString::fromStdString(tip.block_hash.ToString()), QString::fromStdString(tip.block_powhash.ToString()), QString::fromStdString(tip.block_powalgo), verification_progress, synctype, sync_state);
     nLastUpdateNotification = now;
 }
 

@@ -616,7 +616,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
         connect(_clientModel, &ClientModel::networkActiveChanged, this, &BitcoinGUI::setNetworkActive);
 
         modalOverlay->setKnownBestHeight(tip_info->header_height, QDateTime::fromSecsSinceEpoch(tip_info->header_time), /*presync=*/false);
-        setNumBlocks(tip_info->block_height, QDateTime::fromSecsSinceEpoch(tip_info->block_time), tip_info->verification_progress, SyncType::BLOCK_SYNC, SynchronizationState::INIT_DOWNLOAD);
+        setNumBlocks(tip_info->block_height, QDateTime::fromSecsSinceEpoch(tip_info->block_time), QString::fromStdString(tip_info->block_hash.ToString()), QString::fromStdString(tip_info->block_powhash.ToString()), QString::fromStdString(tip_info->block_powalgo), tip_info->verification_progress, SyncType::BLOCK_SYNC, SynchronizationState::INIT_DOWNLOAD);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &BitcoinGUI::setNumBlocks);
 
         // Receive and report messages from client model
@@ -627,7 +627,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel, interfaces::BlockAndH
         // Show progress dialog
         connect(_clientModel, &ClientModel::showProgress, this, &BitcoinGUI::showProgress);
 
-        rpcConsole->setClientModel(_clientModel, tip_info->block_height, tip_info->block_time, tip_info->verification_progress);
+        rpcConsole->setClientModel(_clientModel, tip_info->block_height, tip_info->block_time, tip_info->block_hash, tip_info->block_powhash, tip_info->block_powalgo, tip_info->verification_progress);
 
         updateProxyIcon();
 
@@ -1046,7 +1046,7 @@ void BitcoinGUI::openOptionsDialogWithTab(OptionsDialog::Tab tab)
     GUIUtil::ShowModalDialogAsynchronously(dlg);
 }
 
-void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state)
+void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, const QString& blockPowHash, const QString& blockPowAlgo, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state)
 {
 // Disabling macOS App Nap on initial sync, disk and reindex operations.
 #ifdef Q_OS_MACOS

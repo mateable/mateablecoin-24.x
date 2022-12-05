@@ -151,9 +151,11 @@ static void MuHashPrecompute(benchmark::Bench& bench)
 }
 
 BENCHMARK(RIPEMD160);
-BENCHMARK(SHA1);
-BENCHMARK(SHA256);
-BENCHMARK(SHA512);
+// this causes a symbol conflict with CRYPTO_LIBS
+//BENCHMARK(SHA1);
+//BENCHMARK(SHA256);
+//BENCHMARK(SHA512);
+// end
 BENCHMARK(SHA3_256_1M);
 
 BENCHMARK(SHA256_32b);
