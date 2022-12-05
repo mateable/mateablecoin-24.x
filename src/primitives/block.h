@@ -58,6 +58,16 @@ public:
 
     uint256 GetPoWHash() const;
 
+    bool IsProofOfWork() const
+    {
+        return !IsProofOfStake();
+    }
+
+    bool IsProofOfStake() const
+    {
+        return (nNonce == 0);
+    }
+
     NodeSeconds Time() const
     {
         return NodeSeconds{std::chrono::seconds{nTime}};
@@ -76,6 +86,9 @@ public:
     // network and disk
     std::vector<CTransactionRef> vtx;
 
+    // pos block signature
+    std::vector<unsigned char> vchBlockSig;
+
     // memory only
     mutable bool fChecked;
 
@@ -90,10 +103,23 @@ public:
         *(static_cast<CBlockHeader*>(this)) = header;
     }
 
+    bool IsProofOfStake() const
+    {
+        return (vtx.size() > 1 && vtx[1]->IsCoinStake());
+    }
+
+    bool IsProofOfWork() const
+    {
+        return !IsProofOfStake();
+    }
+
     SERIALIZE_METHODS(CBlock, obj)
     {
         READWRITEAS(CBlockHeader, obj);
         READWRITE(obj.vtx);
+        if (obj.vtx.size() > 1 && obj.vtx[1]->IsCoinStake()) {
+            READWRITE(obj.vchBlockSig);
+        }
     }
 
     void SetNull()

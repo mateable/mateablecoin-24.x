@@ -220,6 +220,8 @@ BITCOIN_CORE_H = \
   policy/rbf.h \
   policy/settings.h \
   pow.h \
+  pos/pos.h \
+  pos/minter.h \
   protocol.h \
   psbt.h \
   random.h \
@@ -403,6 +405,8 @@ libbitcoin_node_a_SOURCES = \
   policy/rbf.cpp \
   policy/settings.cpp \
   pow.cpp \
+  pos/pos.cpp \
+  pos/minter.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
   rpc/fees.cpp \
@@ -480,6 +484,8 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/transaction.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
+  pos/pos.cpp \
+  pos/minter.cpp \
   wallet/walletutil.cpp \
   wallet/coinselection.cpp \
   $(BITCOIN_CORE_H)
@@ -941,6 +947,8 @@ libbitcoinkernel_la_SOURCES = \
   kernel/context.cpp \
   kernel/mempool_persist.cpp \
   key.cpp \
+  pos/pos.cpp \
+  pos/minter.cpp \
   logging.cpp \
   node/blockstorage.cpp \
   node/chainstate.cpp \

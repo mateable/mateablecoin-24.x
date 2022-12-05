@@ -117,6 +117,9 @@ public:
     const std::vector<uint8_t>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
 
+    uint32_t nStakeTimestampMask = (1 << 4) - 1;
+    uint32_t GetStakeTimestampMask(int nHeight) const { return nStakeTimestampMask; }
+
     //! Get allowed assumeutxo configuration.
     //! @see ChainstateManager
     const MapAssumeutxo& Assumeutxo() const { return m_assumeutxo_data; }

@@ -111,6 +111,13 @@ struct Params {
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
 
+    /** Proof of stake parameters */
+    uint256 posLimit;
+    int64_t nPosTargetSpacing;
+    int64_t nPosTargetTimespan;
+    int nStakeMinAge{0};
+    int nStakeMaxAge{0};
+
     /** Multialgo parameters */
     int nMultiAlgoStartBlock;
     int64_t nMultiAlgoTargetSpacing;
