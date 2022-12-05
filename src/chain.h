@@ -9,6 +9,7 @@
 #include <arith_uint256.h>
 #include <consensus/params.h>
 #include <flatfile.h>
+#include <multialgo.h>
 #include <primitives/block.h>
 #include <sync.h>
 #include <uint256.h>
@@ -270,6 +271,16 @@ public:
     uint256 GetBlockPoWHash() const
     {
         return GetBlockHeader().GetPoWHash();
+    }
+
+    std::string GetBlockPowAlgo() const
+    {
+        return GetAlgoNameByIndex(this);
+    }
+
+    std::string GetBaseBlockPowAlgo() const
+    {
+        return GetAlgoName(ALGO_SCRYPT);
     }
 
     /**
