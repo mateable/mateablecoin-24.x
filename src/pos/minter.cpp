@@ -432,9 +432,12 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
 
     // fetch suitable coins
     std::vector<wallet::COutput> vCoins;
-    auto res = wallet::AvailableCoins(*wallet);
-    for (auto entry : res.All()) {
-        vCoins.push_back(entry);
+    {
+        LOCK(wallet->cs_wallet);
+        auto res = wallet::AvailableCoins(*wallet);
+        for (auto entry : res.All()) {
+            vCoins.push_back(entry);
+        }
     }
 
     setCoinsRet.clear();
@@ -457,10 +460,13 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
             }
         }
 
-        wallet::isminetype mine = wallet->IsMine(txout);
-        if (!(mine & wallet::ISMINE_SPENDABLE)) {
-            LogPrint(BCLog::POS, "not using %s: isnt mine/not spendable\n", txout.ToString());
-            continue;
+        {
+            LOCK(wallet->cs_wallet);
+            wallet::isminetype mine = wallet->IsMine(txout);
+            if (!(mine & wallet::ISMINE_SPENDABLE)) {
+                LogPrint(BCLog::POS, "not using %s: isnt mine/not spendable\n", txout.ToString());
+                continue;
+            }
         }
 
         // Stop if we've chosen enough inputs
@@ -469,8 +475,12 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
         }
 
         CAmount n = output.txout.nValue;
-        const wallet::CWalletTx* wtx = wallet->GetWalletTx(output.outpoint.hash);
-        std::pair<int64_t, std::pair<const wallet::CWalletTx*, unsigned int>> coin = std::make_pair(n, std::make_pair(wtx, output.outpoint.n));
+        std::pair<int64_t, std::pair<const wallet::CWalletTx*, unsigned int>> coin;
+        {
+            LOCK(wallet->cs_wallet);
+            const wallet::CWalletTx* wtx = wallet->GetWalletTx(output.outpoint.hash);
+            coin = std::make_pair(n, std::make_pair(wtx, output.outpoint.n));
+        }
 
         if (n >= nTargetValue) {
             // If input value is greater or equal to target then simply insert

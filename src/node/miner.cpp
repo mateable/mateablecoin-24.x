@@ -161,14 +161,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
-    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    //pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
-    pblocktemplate->vTxFees[0] = -nFees;
 
     if (fProofOfStake) {
-        coinbaseTx.vin[0].prevout.SetNull();
         coinbaseTx.vout[0].SetEmpty();
     }
+
+    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
+    pblocktemplate->vTxFees[0] = -nFees;
 
     LogPrintf("CreateNewBlock(): algo: %s block weight: %u txs: %u fees: %ld sigops %d\n", fProofOfStake ? "pos" : GetAlgoName(algoNum), GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
@@ -178,7 +177,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
     }
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, false, chainparams.GetConsensus());
-    pblock->nNonce         = 1; //! small hack to ensure we dont immediate identify this block as pos
+    pblock->nNonce         = !fProofOfStake; //! hack to prevent pow being identified as pos
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 
     BlockValidationState state;
