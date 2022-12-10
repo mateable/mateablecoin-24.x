@@ -327,7 +327,7 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
         }
 
         int64_t nTime = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
-        int64_t nMask = Params().GetStakeTimestampMask(nBestHeight + 1);
+        int64_t nMask = Params().GetStakeTimestampMask();
         int64_t nSearchTime = nTime & ~nMask;
         if (nSearchTime <= nBestTime) {
             if (nTime < nBestTime) {

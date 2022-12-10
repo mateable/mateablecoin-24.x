@@ -394,7 +394,7 @@ static bool CheckInputsFromMempoolAndCache(const CTransaction& tx, TxValidationS
     AssertLockHeld(cs_main);
     AssertLockHeld(pool.cs);
 
-    assert(!tx.IsCoinBase());
+    assert(!tx.IsCoinBase() && !tx.IsCoinStake());
     for (const CTxIn& txin : tx.vin) {
         const Coin& coin = view.AccessCoin(txin.prevout);
 
@@ -835,7 +835,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     bool fSpendsCoinbase = false;
     for (const CTxIn &txin : tx.vin) {
         const Coin &coin = m_view.AccessCoin(txin.prevout);
-        if (coin.IsCoinBase()) {
+        if (coin.IsCoinBase() || coin.IsCoinStake()) {
             fSpendsCoinbase = true;
             break;
         }
@@ -1825,6 +1825,7 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
         if (!alternate.IsSpent()) {
             undo.nHeight = alternate.nHeight;
             undo.fCoinBase = alternate.fCoinBase;
+            undo.fCoinStake = alternate.fCoinStake;
         } else {
             return DISCONNECT_FAILED; // adding output for transaction without known metadata
         }
@@ -1871,7 +1872,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
                 COutPoint out(hash, o);
                 Coin coin;
                 bool is_spent = view.SpendCoin(out, &coin);
-                if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
+                if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
                     fClean = false; // transaction output mismatch
                 }
             }
@@ -2029,12 +2030,14 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     }
 
+    // change each block to prevent precalculation
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, pindex->prevoutStake.hash);
+
     if (block.IsProofOfStake()) {
-        pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, pindex->prevoutStake.hash);
         m_blockman.m_dirty_blockindex.insert(pindex);
 
-        uint256 hashProof, targetProofOfStake;
-        if (!CheckProofOfStake(*this, state, pindex->pprev, *block.vtx[1], block.nTime, block.nBits, hashProof, targetProofOfStake)) {
+        uint256 targetProofOfStake;
+        if (!CheckProofOfStake(*this, state, pindex->pprev, *block.vtx[1], block.nTime, block.nBits, pindex->hashProof, targetProofOfStake)) {
             return error("%s: Check proof of stake failed.", __func__);
         }
     }
@@ -2097,8 +2100,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
     // two in the chain that violate it. This prevents exploiting the issue against nodes during their
     // initial block download.
-    bool fEnforceBIP30 = !((pindex->nHeight==91842 && pindex->GetBlockHash() == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-                           (pindex->nHeight==91880 && pindex->GetBlockHash() == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
+    bool fEnforceBIP30 = (!pindex->phashBlock); // Enforce on CreateNewBlock invocations which don't have a hash.
 
     // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
     // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
@@ -2198,6 +2200,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     std::vector<int> prevheights;
     CAmount nFees = 0;
+    CAmount nValueIn = 0;
+    CAmount nValueOut = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2207,7 +2211,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
         nInputs += tx.vin.size();
 
-        if (!tx.IsCoinBase())
+        if (tx.IsCoinBase())
+            nValueOut += tx.GetValueOut();
+        else
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
@@ -2217,7 +2223,11 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
                 return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
             }
-            nFees += txfee;
+            for (unsigned int i = 0; i < tx.vin.size(); i++)
+                nValueIn += view.AccessCoin(tx.vin[i].prevout).out.nValue;
+            nValueOut += tx.GetValueOut();
+            if (!tx.IsCoinStake())
+                nFees += txfee;
             if (!MoneyRange(nFees)) {
                 LogPrintf("ERROR: %s: accumulated fee in the block out of range.\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
@@ -2286,6 +2296,10 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     if (fJustCheck)
         return true;
+
+    // track money supply and mint amount info
+    pindex->nMint = nValueOut - nValueIn + nFees;
+    pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
     if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, m_params)) {
         return false;
@@ -3418,15 +3432,17 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-length", "size limits failed");
 
     // First transaction must be coinbase, the rest must not be
-    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase())
+    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-missing", "first tx is not coinbase");
-    for (unsigned int i = 1; i < block.vtx.size(); i++)
+    }
+
+    for (unsigned int i = 1; i < block.vtx.size(); i++) {
         if (block.vtx[i]->IsCoinBase())
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-multiple", "more than one coinbase");
+    }
 
     if (block.IsProofOfStake())
     {
-        // only the second transaction can be the optional coinstake
         for (unsigned int i = 2; i < block.vtx.size(); i++) {
 	    if (block.vtx[i]->IsCoinStake())
 	        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-missing", "coinstake in wrong position");
@@ -3434,6 +3450,10 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
         if (!CheckBlockSignature(block)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-block-signature", "bad block signature");
+        }
+
+        if (!CheckCoinStakeTimestamp(block.GetBlockTime())) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-time", "coinstake timestamp violation");
         }
     }
 
@@ -3505,7 +3525,10 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
     return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams);});
+            [&](const auto& header) {
+                bool isPoS = !header.nNonce;
+                return isPoS ? true : CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams);
+            });
 }
 
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)

@@ -324,6 +324,12 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
+                pindexNew->nMint          = diskindex.nMint;
+                pindexNew->nMoneySupply   = diskindex.nMoneySupply;
+                pindexNew->nStakeModifier = diskindex.nStakeModifier;
+                pindexNew->prevoutStake   = diskindex.prevoutStake;
+                pindexNew->hashProof      = diskindex.hashProof;
+
                 // Mateablecoin: Disable PoW Sanity check while loading block index from disk.
                 // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
                 // We opt instead to simply trust the data that is on your local disk.

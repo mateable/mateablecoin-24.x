@@ -49,7 +49,7 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
 /**
  * Check whether the coinstake timestamp meets protocol
  */
-bool CheckCoinStakeTimestamp(int nHeight, int64_t nTimeBlock);
+bool CheckCoinStakeTimestamp(int64_t nTimeBlock);
 
 /**
  * Wrapper around CheckStakeKernelHash()

@@ -118,7 +118,7 @@ public:
     const CCheckpointData& Checkpoints() const { return checkpointData; }
 
     uint32_t nStakeTimestampMask = (1 << 4) - 1;
-    uint32_t GetStakeTimestampMask(int nHeight) const { return nStakeTimestampMask; }
+    uint32_t GetStakeTimestampMask() const { return nStakeTimestampMask; }
 
     //! Get allowed assumeutxo configuration.
     //! @see ChainstateManager

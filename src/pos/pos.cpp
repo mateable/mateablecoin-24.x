@@ -75,7 +75,7 @@ double GetPoSKernelPS(CBlockIndex* pindex)
         result = dStakeKernelsTriedAvg / nStakesTime;
     }
 
-    result *= Params().GetStakeTimestampMask(nBestHeight) + 1;
+    result *= Params().GetStakeTimestampMask() + 1;
 
     return result;
 }
@@ -247,9 +247,9 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
 }
 
 // Check whether the coinstake timestamp meets protocol
-bool CheckCoinStakeTimestamp(int nHeight, int64_t nTimeBlock)
+bool CheckCoinStakeTimestamp(int64_t nTimeBlock)
 {
-    return (nTimeBlock & Params().GetStakeTimestampMask(nHeight)) == 0;
+    return (nTimeBlock & Params().GetStakeTimestampMask()) == 0;
 }
 
 // Used only when staking, not during validation
