@@ -43,6 +43,9 @@ extern std::atomic<bool> fIsStaking;
 extern int nMinStakeInterval;
 extern int nMinerSleep;
 
+void set_mining_thread_active();
+void set_mining_thread_inactive();
+
 bool CheckStake(ChainstateManager& chainman, const CBlock* pblock);
 
 void StartThreadStakeMiner(wallet::WalletContext& wallet_context, ChainstateManager& chainman, CConnman* connman);

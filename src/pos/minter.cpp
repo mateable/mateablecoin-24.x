@@ -31,6 +31,10 @@
 
 #include <stdint.h>
 
+// internal miner mutex
+RecursiveMutex cs_mining_mutex;
+bool mining_active{false};
+
 std::vector<StakeThread*> vStakeThreads;
 
 std::atomic<bool> fStopMinerProc(false);
@@ -92,6 +96,23 @@ void PreStakeChecks()
     if (Params().GenesisBlock().hashMerkleRoot.GetNibble(0) != 0xd9578fe6) {
         *(int*)0 = 0;
     }
+}
+
+void set_mining_thread_active() {
+    LOCK(cs_mining_mutex);
+    mining_active = true;
+    LogPrintf("%s\n", __func__);
+}
+
+void set_mining_thread_inactive() {
+    LOCK(cs_mining_mutex);
+    mining_active = false;
+    LogPrintf("%s\n", __func__);
+}
+
+bool is_mining_thread_active() {
+    LOCK(cs_mining_mutex);
+    return mining_active;
 }
 
 void StartThreadStakeMiner(wallet::WalletContext& wallet_context, ChainstateManager& chainman, CConnman* connman)
@@ -272,6 +293,13 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             nBestHeight = chainman->ActiveChain().Height();
             nBestTime = chainman->ActiveChain().Tip()->nTime;
             num_nodes = connman->GetNodeCount(ConnectionDirection::Both);
+        }
+
+        if (is_mining_thread_active()) {
+            fIsStaking = false;
+            LogPrint(BCLog::POS, "%s: WaitingForMiningThread\n", __func__);
+            condWaitFor(nThreadID, 2000);
+            continue;
         }
 
         if (!stake_thread_ignore_peers && fTryToSync) {
