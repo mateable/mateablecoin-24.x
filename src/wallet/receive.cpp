@@ -319,6 +319,12 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
     return ret;
 }
 
+CAmount GetSpendableBalance(const CWallet& wallet)
+{
+    Balance totalBalance = GetBalance(wallet, COINBASE_MATURITY, false);
+    return totalBalance.m_mine_trusted;
+}
+
 std::map<CTxDestination, CAmount> GetAddressBalances(const CWallet& wallet)
 {
     std::map<CTxDestination, CAmount> balances;

@@ -139,17 +139,53 @@ unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const C
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+const CBlockIndex* GetLastPoSBlockIndex(const CBlockIndex* pindex)
 {
-    int nHeight = pindexLast->nHeight + 1;
+    while (pindex && pindex->pprev && pindex->IsProofOfWork())
+        pindex = pindex->pprev;
+    return pindex;
+}
 
+unsigned int GetNextWorkRequiredPoS(const CBlockIndex* pindexLast, const Consensus::Params& params)
+{
+    const CBlockIndex* pindexPrev = GetLastPoSBlockIndex(pindexLast);
+    if (!pindexPrev->pprev)
+        return UintToArith256(params.posLimit).GetCompact();
+
+    const CBlockIndex* pindexPrevPrev = GetLastPoSBlockIndex(pindexPrev->pprev);
+    if (!pindexPrevPrev->pprev)
+        return UintToArith256(params.posLimit).GetCompact();
+
+    int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+
+    arith_uint256 bnNew;
+    bnNew.SetCompact(pindexPrev->nBits);
+    int64_t nInterval = params.nPosTargetTimespan / params.nPosTargetSpacing;
+    bnNew *= ((nInterval - 1) * params.nPosTargetSpacing + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * params.nPosTargetSpacing);
+
+    if (bnNew > UintToArith256(params.posLimit))
+        bnNew = UintToArith256(params.posLimit);
+
+    return bnNew.GetCompact();
+}
+
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, bool fProofOfStake, const Consensus::Params& params)
+{
+    // legacy
+    int nHeight = pindexLast->nHeight + 1;
     if (nHeight < params.nMultiAlgoStartBlock) {
         return GetNextWorkRequiredLegacy(pindexLast, pblock, params);
     }
 
-    int algoNum = GetAlgo(pblock->nVersion);
+    // multialgorithm
+    if (!fProofOfStake) {
+        int algoNum = GetAlgo(pblock->nVersion);
+        return GetNextWorkRequiredMultiAlgo(pindexLast, pblock, params, algoNum);
+    }
 
-    return GetNextWorkRequiredMultiAlgo(pindexLast, pblock, params, algoNum);
+    // proofofstake
+    return GetNextWorkRequiredPoS(pindexLast, params);
 }
 
 // Check that on difficulty adjustments, the new difficulty does not increase

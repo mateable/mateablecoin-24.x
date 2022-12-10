@@ -96,6 +96,7 @@ const int GetAlgoByIndex(const CBlockIndex* pindex)
 
 std::string GetAlgoNameByIndex(const CBlockIndex* pindex)
 {
+    if (pindex->IsProofOfStake()) return std::string("pos");
     return GetAlgoName(GetAlgo(pindex->GetBlockHeader().nVersion));
 }
 

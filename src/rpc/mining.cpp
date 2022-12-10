@@ -17,6 +17,7 @@
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
+#include <pos/minter.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
 #include <rpc/mining.h>
@@ -148,11 +149,15 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
 
 static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTimeout)
 {
+    set_mining_thread_active();
+
     UniValue blockHashes(UniValue::VARR);
     while (nGenerate > 0 && !ShutdownRequested()) {
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler{chainman.ActiveChainstate(), &mempool}.CreateNewBlock(coinbase_script, defaultAlgo));
-        if (!pblocktemplate.get())
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler{chainman.ActiveChainstate(), &mempool}.CreateNewBlock(coinbase_script, false, defaultAlgo));
+        if (!pblocktemplate.get()) {
+            set_mining_thread_inactive();
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        }
         CBlock *pblock = &pblocktemplate->block;
 
         uint256 block_hash;
@@ -165,6 +170,8 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
             blockHashes.push_back(block_hash.GetHex());
         }
     }
+    set_mining_thread_inactive();
+
     return blockHashes;
 }
 
@@ -360,7 +367,7 @@ static RPCHelpMan generateblock()
     {
         LOCK(cs_main);
 
-        std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler{chainman.ActiveChainstate(), nullptr}.CreateNewBlock(coinbase_script, defaultAlgo));
+        std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler{chainman.ActiveChainstate(), nullptr}.CreateNewBlock(coinbase_script, false, defaultAlgo));
         if (!blocktemplate) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         }
@@ -803,7 +810,7 @@ static RPCHelpMan getblocktemplate()
 
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(scriptDummy, algoNum);
+        pblocktemplate = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(scriptDummy, false, algoNum);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

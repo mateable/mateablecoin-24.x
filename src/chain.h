@@ -13,6 +13,7 @@
 #include <primitives/block.h>
 #include <sync.h>
 #include <uint256.h>
+#include <util/moneystr.h>
 #include <util/time.h>
 
 #include <vector>
@@ -193,6 +194,13 @@ public:
     //! @sa ActivateSnapshot
     unsigned int nChainTx{0};
 
+    // proof-of-stake specific fields
+    uint256 nStakeModifier{};
+    uint256 hashProof{};
+    COutPoint prevoutStake{};
+    CAmount nMint{0};
+    CAmount nMoneySupply{0};
+
     //! Verification status of this block. See enum BlockStatus
     //!
     //! Note: this value is modified to show BLOCK_OPT_WITNESS during UTXO snapshot
@@ -307,6 +315,21 @@ public:
         return (int64_t)nTimeMax;
     }
 
+    int64_t GetPastTimeLimit() const
+    {
+        return GetBlockTime();
+    }
+
+    bool IsProofOfWork() const
+    {
+        return !IsProofOfStake();
+    }
+
+    bool IsProofOfStake() const
+    {
+        return (nNonce == 0);
+    }
+
     static constexpr int nMedianTimeSpan = 11;
 
     int64_t GetMedianTimePast() const
@@ -323,7 +346,18 @@ public:
         return pbegin[(pend - pbegin) / 2];
     }
 
-    std::string ToString() const;
+    std::string ToString() const
+    {
+        return strprintf("CBlockIndex(nprev=%08x, nFile=%d, nHeight=%d, nMint=%s, nMoneySupply=%s, nType=%s, nStakeModifier=%s, hashProof=%s, prevoutStake=(%s), merkle=%s, hashBlock=%s)",
+            pprev, nFile, nHeight,
+            FormatMoney(nMint), FormatMoney(nMoneySupply),
+            IsProofOfStake() ? "PoS" : "PoW",
+            nStakeModifier.ToString(),
+            hashProof.ToString(),
+            prevoutStake.ToString(),
+            hashMerkleRoot.ToString().substr(0,10),
+            GetBlockHash().ToString().substr(0,20));
+    }
 
     //! Check whether this block index entry is valid up to the passed validity level.
     bool IsValid(enum BlockStatus nUpTo = BLOCK_VALID_TRANSACTIONS) const
@@ -408,6 +442,12 @@ public:
         if (obj.nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO)) READWRITE(VARINT_MODE(obj.nFile, VarIntMode::NONNEGATIVE_SIGNED));
         if (obj.nStatus & BLOCK_HAVE_DATA) READWRITE(VARINT(obj.nDataPos));
         if (obj.nStatus & BLOCK_HAVE_UNDO) READWRITE(VARINT(obj.nUndoPos));
+
+        READWRITE(obj.nMint);
+        READWRITE(obj.nMoneySupply);
+        READWRITE(obj.nStakeModifier);
+        READWRITE(obj.prevoutStake);
+        READWRITE(obj.hashProof);
 
         // block header
         READWRITE(obj.nVersion);

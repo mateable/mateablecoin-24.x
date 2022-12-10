@@ -79,6 +79,11 @@ public:
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 1 * 60;
         consensus.nPowTargetSpacing = 1 * 60;
+        consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPosTargetTimespan = 5 * 60;
+        consensus.nPosTargetSpacing = 1 * 60;
+        consensus.nStakeMinAge = 10 * 60;
+        consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1815; // 90% of 2016
@@ -90,10 +95,10 @@ public:
         consensus.nMultiAlgoTargetSpacing = 15 * NUM_ALGOS;
         consensus.nMaxAdjustDown = 16;
         consensus.nMaxAdjustUp = 8;
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
         consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
         consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
         consensus.nLocalTargetAdjustment = 4;
-        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
@@ -188,11 +193,16 @@ public:
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.CSVHeight = 0;
-        consensus.SegwitHeight = 0;
+        consensus.SegwitHeight = std::numeric_limits<uint32_t>::max();
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
+        consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPosTargetTimespan = 5 * 60;
+        consensus.nPosTargetSpacing = 1 * 60;
+        consensus.nStakeMinAge = 10 * 60;
+        consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -204,10 +214,10 @@ public:
         consensus.nMultiAlgoTargetSpacing = 15 * NUM_ALGOS;
         consensus.nMaxAdjustDown = 16;
         consensus.nMaxAdjustUp = 8;
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
         consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
         consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
         consensus.nLocalTargetAdjustment = 4;
-        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
