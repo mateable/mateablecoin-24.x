@@ -15,7 +15,7 @@ QT_TRANSLATE_NOOP("bitcoin-core", ""
 "a backup."),
 QT_TRANSLATE_NOOP("bitcoin-core", ""
 "%s request to listen on port %u. This port is considered \"bad\" and thus it "
-"is unlikely that any Bitcoin Core peers connect to it. See doc/p2p-bad-ports."
+"is unlikely that any Mateable Core peers connect to it. See doc/p2p-bad-ports."
 "md for details and a full list."),
 QT_TRANSLATE_NOOP("bitcoin-core", ""
 "-maxtxfee is set very high! Fees this large could be paid on a single "
