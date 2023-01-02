@@ -39,7 +39,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     uint256 hash = wtx.tx->GetHash();
     std::map<std::string, std::string> mapValue = wtx.value_map;
 
-    if (nNet > 0 || wtx.is_coinbase)
+    if (nNet > 0 || wtx.is_coinbase || wtx.is_coinstake)
     {
         //
         // Credit
@@ -51,8 +51,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             if(mine)
             {
                 TransactionRecord sub(hash, nTime);
-                sub.idx = i; // vout index
-                sub.credit = txout.nValue;
+                if(wtx.is_coinstake)
+                {
+                    sub.idx = 1; // vout index
+                    sub.credit = nNet;
+                }
+                else
+                {
+                    sub.idx = i; // vout index
+                    sub.credit = txout.nValue;
+                }
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (wtx.txout_address_is_mine[i])
                 {
@@ -71,8 +79,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
+                else if (wtx.is_coinstake)
+                {
+                    // Staked
+                    sub.type = TransactionRecord::Staked;
+                }
 
                 parts.append(sub);
+
+                if(wtx.is_coinstake)
+                    break; // Single output for coinstake
             }
         }
     }
@@ -180,7 +196,8 @@ void TransactionRecord::updateStatus(const interfaces::WalletTxStatus& wtx, cons
     status.m_cur_block_hash = block_hash;
 
     // For generated transactions, determine maturity
-    if (type == TransactionRecord::Generated) {
+    if (type == TransactionRecord::Generated || type == TransactionRecord::Staked)
+    {
         if (wtx.blocks_to_maturity > 0)
         {
             status.status = TransactionStatus::Immature;
