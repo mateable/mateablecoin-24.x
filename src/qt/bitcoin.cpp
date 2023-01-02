@@ -590,7 +590,7 @@ int GuiMain(int argc, char* argv[])
     bool did_show_intro = false;
     int64_t prune_MiB = 0;  // Intro dialog prune configuration
     // Gracefully exit if the user cancels
-    if (!Intro::showIfNeeded(did_show_intro, prune_MiB)) return EXIT_SUCCESS;
+    if (!Intro::showIfNeeded(did_show_intro)) return EXIT_SUCCESS;
 
     /// 6. Determine availability of data directory and parse bitcoin.conf
     /// - Do not call gArgs.GetDataDirNet() before this step finishes

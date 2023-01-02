@@ -956,21 +956,8 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         nMinimumChainWork = UintToArith256(chainparams.GetConsensus().nMinimumChainWork);
     }
 
-    // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
-    int64_t nPruneArg = args.GetIntArg("-prune", 0);
-    if (nPruneArg < 0) {
-        return InitError(_("Prune cannot be configured with a negative value."));
-    }
-    nPruneTarget = (uint64_t) nPruneArg * 1024 * 1024;
-    if (nPruneArg == 1) {  // manual pruning: -prune=1
-        nPruneTarget = std::numeric_limits<uint64_t>::max();
-        fPruneMode = true;
-    } else if (nPruneTarget) {
-        if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
-            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
-        }
-        fPruneMode = true;
-    }
+    // we dont support pruning
+    assert(fPruneMode == false);
 
     nConnectTimeout = args.GetIntArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0) {
