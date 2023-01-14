@@ -6,6 +6,7 @@ default_host_CC = $(host_toolchain)gcc
 default_host_CXX = $(host_toolchain)g++
 default_host_AR = $(host_toolchain)ar
 default_host_RANLIB = $(host_toolchain)ranlib
+default_host_WINDRES = $(host_toolchain)windres
 default_host_STRIP = $(host_toolchain)strip
 default_host_LIBTOOL = $(host_toolchain)libtool
 default_host_NM = $(host_toolchain)nm

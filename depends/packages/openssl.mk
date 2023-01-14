@@ -5,7 +5,7 @@ $(package)_file_name=$(package)-$($(package)_version).tar.gz
 $(package)_sha256_hash=40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a
 
 define $(package)_set_vars
-$(package)_config_env=AR="$($(package)_ar)" RANLIB="$($(package)_ranlib)" CC="$($(package)_cc)" WINDRES="$(host_WINDRES)"
+$(package)_config_env=AR="$($(package)_ar)" RANLIB="$($(package)_ranlib)" CC="$($(package)_cc)" WINDRES="$(host_toolchain)windres"
 $(package)_config_opts=--prefix=$(host_prefix) --openssldir=$(host_prefix)
 $(package)_config_opts+=no-asm
 $(package)_config_opts+=no-threads
