@@ -65,9 +65,9 @@ CLEAN_BITCOIN_QT_TEST = $(TEST_QT_MOC_CPP) qt/test/*.gcda qt/test/*.gcno
 
 CLEANFILES += $(CLEAN_BITCOIN_QT_TEST)
 
-test_mateable_qt : qt/test/test_bitcoin-qt$(EXEEXT)
+test_mateable_qt : qt/test/test_mateable-qt$(EXEEXT)
 
-test_mateable_qt_check : qt/test/test_bitcoin-qt$(EXEEXT) FORCE
+test_mateable_qt_check : qt/test/test_mateable-qt$(EXEEXT) FORCE
 	$(MAKE) check-TESTS TESTS=$^
 
 test_mateable_qt_clean: FORCE

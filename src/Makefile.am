@@ -31,7 +31,7 @@ LIBBITCOIN_CONSENSUS=libmateable_consensus.a
 LIBBITCOIN_CLI=libmateable_cli.a
 LIBBITCOIN_UTIL=libmateable_util.a
 LIBBITCOIN_CRYPTO_BASE=crypto/libmateable_crypto_base.la
-LIBBITCOINQT=qt/libbitcoinqt.a
+LIBBITCOINQT=qt/libmateableqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
 if ENABLE_ZMQ
@@ -361,6 +361,8 @@ libmateable_node_a_SOURCES = \
   blockfilter.cpp \
   chain.cpp \
   consensus/tx_verify.cpp \
+  crypto/algo_sanity.cpp \
+  crypto/algo_sanity.h \
   dbwrapper.cpp \
   deploymentstatus.cpp \
   flatfile.cpp \
@@ -634,8 +636,6 @@ libmateable_consensus_a_SOURCES = \
   consensus/params.h \
   consensus/tx_check.cpp \
   consensus/validation.h \
-  crypto/algo_sanity.cpp \
-  crypto/algo_sanity.h \
   hash.cpp \
   hash.h \
   multialgo.cpp \
