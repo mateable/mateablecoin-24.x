@@ -148,7 +148,7 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = {0x08, 0xf2, 0xc6, 0xff};
         base58Prefixes[EXT_SECRET_KEY] = {0x08, 0xf2, 0xc2, 0x6b};
 
-        bech32_hrp = "mtb";
+        bech32_hrp = "mtbc";
 
         // vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
@@ -256,7 +256,7 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
-        bech32_hrp = "tmtb";
+        bech32_hrp = "tmtbc";
 
         // vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_test), std::end(chainparams_seed_test));
 
@@ -267,6 +267,7 @@ public:
 
         checkpointData = {
             {
+                {     0, genesis.GetHash()                                                             },
             }
         };
 
