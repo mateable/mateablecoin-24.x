@@ -209,13 +209,20 @@ bool SignBlockWithKey(CBlock& block, const CKey& key)
 
     CKeyID keyID;
 
-    if (whichType == TxoutType::PUBKEYHASH)
+    if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH) {
         keyID = CKeyID(uint160(vSolutions[0]));
-    else if (whichType == TxoutType::PUBKEY)
+    } else if (whichType == TxoutType::PUBKEY) {
         keyID = CPubKey(vSolutions[0]).GetID();
-
-    if (!key.Sign(block.GetHash(), block.vchBlockSig))
+    } else {
         return false;
+    }
+
+    if (!key.Sign(block.GetHash(), block.vchBlockSig)) {
+        LogPrint(BCLog::POS, "%s: signing block with key type %s failed\n", __func__, GetTxnOutputType(whichType));
+        return false;
+    }
+
+    LogPrint(BCLog::POS, "%s: signing block with key type %s succeeded\n", __func__, GetTxnOutputType(whichType));
 
     return true;
 }
