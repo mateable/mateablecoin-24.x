@@ -50,6 +50,8 @@ class CScript;
 enum class FeeEstimateMode;
 struct bilingual_str;
 
+void SetCoinBaseMaturity(int in);
+
 namespace wallet {
 struct WalletContext;
 

@@ -132,6 +132,7 @@ bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 
+int COINBASE_MATURITY;
 uint256 hashAssumeValid;
 arith_uint256 nMinimumChainWork;
 

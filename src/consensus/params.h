@@ -128,6 +128,7 @@ struct Params {
     int64_t nMinActualTimespan;
     int64_t nMaxActualTimespan;
     int64_t nLocalTargetAdjustment;
+    int nCoinbaseMaturity;
 
     std::chrono::seconds PowTargetSpacing() const
     {

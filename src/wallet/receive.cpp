@@ -8,6 +8,8 @@
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 
+extern int COINBASE_MATURITY_;
+
 namespace wallet {
 isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin)
 {
@@ -321,7 +323,7 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
 
 CAmount GetSpendableBalance(const CWallet& wallet)
 {
-    Balance totalBalance = GetBalance(wallet, COINBASE_MATURITY, false);
+    Balance totalBalance = GetBalance(wallet, COINBASE_MATURITY_, false);
     return totalBalance.m_mine_trusted;
 }
 
