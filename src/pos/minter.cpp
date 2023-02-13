@@ -565,8 +565,8 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
 
             LogPrint(BCLog::POS, "%s: parsed kernel type=%s\n", __func__, GetTxnOutputType(whichType));
 
-            if (whichType == TxoutType::PUBKEYHASH) {
-
+            if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH)
+            {
                 CPubKey pubKeyStake;
                 uint160 hash160(vSolutions[0]);
                 auto spk_man = wallet->GetLegacyScriptPubKeyMan();
@@ -579,12 +579,37 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
                     return false;
                 }
                 scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
-
-            } else if (whichType == TxoutType::PUBKEY) {
-
+            }
+            else if (whichType == TxoutType::SCRIPTHASH)
+            {
+                uint160 hash160(vSolutions[0]);
+                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
+                if (!spk_man) {
+                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
+                    return false;
+                }
+                CKeyID keyID;
+                CScript script;
+                CTxDestination inner_dest;
+                CScriptID scriptID(hash160);
+                if (spk_man->GetCScript(scriptID, script) && ExtractDestination(script, inner_dest)) {
+                    keyID = GetKeyForDestination(*spk_man, inner_dest);
+                    if (!spk_man->GetKey(keyID, key)) {
+                        LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
+                        return false;
+                    }
+                } else {
+                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
+                    return false;
+                }
+                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
+            }
+            else if (whichType == TxoutType::PUBKEY)
+            {
                 scriptPubKeyOut = scriptPubKeyKernel;
-
-            } else {
+            }
+            else
+            {
                 LogPrint(BCLog::POS, "%s: no support for kernel type=%s\n", __func__, GetTxnOutputType(whichType));
                 continue;
             }
