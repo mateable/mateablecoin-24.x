@@ -13,6 +13,7 @@
 #include <script/interpreter.h>
 #include <util/check.h>
 #include <util/moneystr.h>
+#include <validation.h>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -203,14 +204,11 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         // Tally transaction fees
         const CAmount txfee_aux = nValueIn - nValueOut;
-        if (txfee_aux < 0) {
+        if (!MoneyRange(txfee_aux)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-negative");
         }
 
-        txfee += txfee_aux;
-        if (!MoneyRange(txfee)) {
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange");
-        }
+        txfee = txfee_aux;
     }
 
     return true;

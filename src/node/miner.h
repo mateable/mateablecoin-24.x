@@ -133,6 +133,7 @@ private:
     std::unique_ptr<CBlockTemplate> pblocktemplate;
 
     // Configuration parameters for the block size
+    bool fIncludeWitness;
     unsigned int nBlockMaxWeight;
     CFeeRate blockMinFeeRate;
 

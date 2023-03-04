@@ -97,6 +97,7 @@ void BlockAssembler::resetBlock()
     // Reserve space for coinbase tx
     nBlockWeight = 4000;
     nBlockSigOpsCost = 400;
+    fIncludeWitness = false;
 
     // These counters do not include coinbase tx
     nBlockTx = 0;
@@ -140,6 +141,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nTime = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
     m_lock_time_cutoff = pindexPrev->GetMedianTimePast();
+    fIncludeWitness = true;
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
@@ -158,15 +160,19 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
 
     if (fProofOfStake) {
         coinbaseTx.vout[0].SetEmpty();
+    } else {
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
     }
 
+    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
+    if (fIncludeWitness) {
+        pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
+    }
     pblocktemplate->vTxFees[0] = -nFees;
 
     LogPrintf("CreateNewBlock(): algo: %s block weight: %u txs: %u fees: %ld sigops %d\n", fProofOfStake ? "pos" : GetAlgoName(algoNum), GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
@@ -221,6 +227,9 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 {
     for (CTxMemPool::txiter it : package) {
         if (!IsFinalTx(it->GetTx(), nHeight, m_lock_time_cutoff)) {
+            return false;
+        }
+        if (!fIncludeWitness && it->GetTx().HasWitness()) {
             return false;
         }
     }

@@ -132,6 +132,7 @@ bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 
+int COINBASE_MATURITY;
 uint256 hashAssumeValid;
 arith_uint256 nMinimumChainWork;
 
@@ -739,28 +740,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     {
         const CTransaction* ptxConflicting = m_pool.GetConflictTx(txin.prevout);
         if (ptxConflicting) {
-            if (!args.m_allow_replacement) {
-                // Transaction conflicts with a mempool tx, but we're not allowing replacements.
-                return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "bip125-replacement-disallowed");
-            }
-            if (!ws.m_conflicts.count(ptxConflicting->GetHash()))
-            {
-                // Transactions that don't explicitly signal replaceability are
-                // *not* replaceable with the current logic, even if one of their
-                // unconfirmed ancestors signals replaceability. This diverges
-                // from BIP125's inherited signaling description (see CVE-2021-31876).
-                // Applications relying on first-seen mempool behavior should
-                // check all unconfirmed ancestors; otherwise an opt-in ancestor
-                // might be replaced, causing removal of this descendant.
-                //
-                // If replaceability signaling is ignored due to node setting,
-                // replacement is always allowed.
-                if (!m_pool.m_full_rbf && !SignalsOptInRBF(*ptxConflicting)) {
-                    return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "txn-mempool-conflict");
-                }
-
-                ws.m_conflicts.insert(ptxConflicting->GetHash());
-            }
+            return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "bip125-replacement-disallowed");
         }
     }
 
@@ -3647,7 +3627,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     //   {0xaa, 0x21, 0xa9, 0xed}, and the following 32 bytes are SHA256^2(witness root, witness reserved value). In case there are
     //   multiple, the last one is used.
     bool fHaveWitness = false;
-    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_SEGWIT)) {
+    if (pindexPrev && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_SEGWIT)) {
         int commitpos = GetWitnessCommitmentIndex(block);
         if (commitpos != NO_WITNESS_COMMITMENT) {
             bool malleated = false;
@@ -3660,7 +3640,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
             }
             CHash256().Write(hashWitness).Write(block.vtx[0]->vin[0].scriptWitness.stack[0]).Finalize(hashWitness);
             if (memcmp(hashWitness.begin(), &block.vtx[0]->vout[commitpos].scriptPubKey[6], 32)) {
-                return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
+                //return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
             }
             fHaveWitness = true;
         }

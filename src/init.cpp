@@ -1395,6 +1395,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 7: load block chain
 
+    COINBASE_MATURITY = chainparams.GetConsensus().nCoinbaseMaturity;
+    SetCoinBaseMaturity(COINBASE_MATURITY);
+
     fReindex = args.GetBoolArg("-reindex", false);
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
 
