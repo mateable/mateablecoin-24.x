@@ -11,6 +11,7 @@
 #include <pow.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <shutdown.h>
 #include <util/moneystr.h>
 #include <util/syserror.h>
 #include <util/thread.h>
@@ -260,6 +261,11 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
 
 void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWallet>>& vpwallets, size_t nStart, size_t nEnd, ChainstateManager* chainman, CConnman* connman)
 {
+    while (GetTime() - GetStartupTime() < 15) {
+        UninterruptibleSleep(std::chrono::milliseconds { 150 });
+        if (ShutdownRequested()) return;
+    }
+
     LogPrintf("Starting staking thread %d, %d wallet%s.\n", nThreadID, nEnd - nStart, (nEnd - nStart) > 1 ? "s" : "");
 
     int nBestHeight; // TODO: set from new block signal?
