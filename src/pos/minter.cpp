@@ -7,6 +7,7 @@
 #include <chainparams.h>
 #include <consensus/consensus.h>
 #include <node/miner.h>
+#include <pos/manager.h>
 #include <pos/pos.h>
 #include <pow.h>
 #include <primitives/block.h>
@@ -286,6 +287,11 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             fIsStaking = false;
             LogPrint(BCLog::POS, "%s: Block import/reindex.\n", __func__);
             condWaitFor(nThreadID, 30000);
+            continue;
+        }
+
+        if (!fStakerRunning) {
+            condWaitFor(nThreadID, 5000);
             continue;
         }
 

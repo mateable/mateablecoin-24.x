@@ -20,6 +20,7 @@
 #include <qt/utilitydialog.h>
 
 #ifdef ENABLE_WALLET
+#include <pos/manager.h>
 #include <qt/walletcontroller.h>
 #include <qt/walletframe.h>
 #include <qt/walletmodel.h>
@@ -87,6 +88,7 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     platformStyle(_platformStyle),
     m_network_style(networkStyle)
 {
+    m_is_staking = false;
     QSettings settings;
     if (!restoreGeometry(settings.value("MainWindowGeometry").toByteArray())) {
         // Restore failed (perhaps missing setting), center the window
@@ -315,6 +317,8 @@ void BitcoinGUI::createActions()
     optionsAction->setMenuRole(QAction::PreferencesRole);
     optionsAction->setEnabled(false);
 
+    toggleStakingAction = new QAction(tr("Enable staking..."), this);
+    toggleStakingAction->setStatusTip(tr("Enable staking on current wallet"));
     encryptWalletAction = new QAction(tr("&Encrypt Wallet…"), this);
     encryptWalletAction->setStatusTip(tr("Encrypt the private keys that belong to your wallet"));
     encryptWalletAction->setCheckable(true);
@@ -387,6 +391,7 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     if(walletFrame)
     {
+        connect(toggleStakingAction, &QAction::triggered, this, &BitcoinGUI::toggleStaking);
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
@@ -506,6 +511,7 @@ void BitcoinGUI::createMenuBar()
     if(walletFrame)
     {
         settings->addAction(encryptWalletAction);
+        settings->addAction(toggleStakingAction);
         settings->addAction(changePassphraseAction);
         settings->addSeparator();
         settings->addAction(m_mask_values_action);
@@ -778,6 +784,7 @@ void BitcoinGUI::removeAllWallets()
 
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
+    toggleStakingAction->setEnabled(enabled);
     overviewAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
@@ -919,6 +926,21 @@ void BitcoinGUI::showHelpMessageClicked()
 }
 
 #ifdef ENABLE_WALLET
+void BitcoinGUI::toggleStaking()
+{
+    if (!m_is_staking) {
+        m_is_staking = true;
+        stakeman_request_start();
+        toggleStakingAction->setText("Disable staking...");
+        toggleStakingAction->setStatusTip("Disable staking on current wallet");
+    } else {
+        m_is_staking = false;
+        stakeman_request_stop();
+        toggleStakingAction->setText("Enable staking...");
+        toggleStakingAction->setStatusTip("Enable staking on current wallet");
+    }
+}
+
 void BitcoinGUI::openClicked()
 {
     OpenURIDialog dlg(platformStyle, this);
@@ -1370,14 +1392,16 @@ void BitcoinGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
 
 void BitcoinGUI::setStakingStatus()
 {
-    if (fIsStaking && !fTryToSync) {
-        labelStakingIcon->show();
-        labelStakingIcon->setPixmap(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-        labelStakingIcon->setToolTip(tr("Staking is active"));
-    } else if (!fIsStaking && fTryToSync) {
-        labelStakingIcon->show();
-        labelStakingIcon->setPixmap(QIcon(":/icons/staking_stalled").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-        labelStakingIcon->setToolTip(tr("Staking is stalled"));
+    if (fStakerRunning) {
+        if (!fTryToSync) {
+           labelStakingIcon->show();
+           labelStakingIcon->setPixmap(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+           labelStakingIcon->setToolTip(tr("Staking is active"));
+        } else {
+           labelStakingIcon->show();
+           labelStakingIcon->setPixmap(QIcon(":/icons/staking_stalled").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+           labelStakingIcon->setToolTip(tr("Staking is stalled"));
+        }
     } else {
         labelStakingIcon->show();
         labelStakingIcon->setPixmap(QIcon(":/icons/staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
