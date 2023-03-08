@@ -54,6 +54,7 @@
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <pos/pos.h>
+#include <pos/manager.h>
 #include <pos/minter.h>
 #include <protocol.h>
 #include <rpc/blockchain.h>
@@ -131,6 +132,8 @@ using node::VerifyLoadedChainstate;
 using node::fPruneMode;
 using node::fReindex;
 using node::nPruneTarget;
+
+std::thread stakeman;
 
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -1799,7 +1802,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         num_wallets = vpwallets.size();
     }
     if (num_wallets > 0) {
-        StartThreadStakeMiner(*node.wallet_loader->context(), chainman, node.connman.get());
+        stakeman = std::thread(&stakeman_handler, std::ref(*node.wallet_loader->context()), std::ref(chainman), node.connman.get());
+        stakeman.detach();
     }
 #endif
 

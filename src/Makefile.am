@@ -221,6 +221,7 @@ BITCOIN_CORE_H = \
   policy/settings.h \
   pow.h \
   pos/pos.h \
+  pos/manager.h \
   pos/minter.h \
   protocol.h \
   psbt.h \
@@ -408,6 +409,7 @@ libmateable_node_a_SOURCES = \
   policy/settings.cpp \
   pow.cpp \
   pos/pos.cpp \
+  pos/manager.cpp \
   pos/minter.cpp \
   rest.cpp \
   rpc/blockchain.cpp \

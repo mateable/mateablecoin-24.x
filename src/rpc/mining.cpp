@@ -17,6 +17,7 @@
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
+#include <pos/manager.h>
 #include <pos/minter.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
@@ -1098,6 +1099,37 @@ static RPCHelpMan submitheader()
     };
 }
 
+static RPCHelpMan setstaking()
+{
+    return RPCHelpMan{"setstaking",
+                "\nReturns an object that can be toggled to enable or disable staking.\n"
+                "\n\n",
+                {
+                    {"status", RPCArg::Type::BOOL, RPCArg::Optional::NO, "The status of staking thread."}
+                },
+                RPCResult{
+                    RPCResult::Type::BOOL, "", "Staking status"},
+                RPCExamples{
+                    HelpExampleCli("setstaking", "\"true\"") +
+                    HelpExampleRpc("setstaking", "\"true\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    UniValue obj(UniValue::VOBJ);
+
+    bool action = request.params[0].isNull() ? false : request.params[0].get_bool();
+    if (action) {
+        stakeman_request_start();
+    } else {
+        stakeman_request_stop();
+    }
+    obj.pushKV("staking status", action);
+
+    return obj;
+},
+    };
+}
+
 void RegisterMiningRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1109,6 +1141,7 @@ void RegisterMiningRPCCommands(CRPCTable& t)
         {"mining", &getblocktemplate},
         {"mining", &submitblock},
         {"mining", &submitheader},
+        {"mining", &setstaking},
 
         {"hidden", &generatetoaddress},
         {"hidden", &generatetodescriptor},
