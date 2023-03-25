@@ -328,6 +328,13 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             continue;
         }
 
+        if (nBestHeight < Params().GetConsensus().nPosStartBlock) {
+            fIsStaking = false;
+            LogPrint(BCLog::POS, "%s: WaitingForPosStartingBlock\n", __func__);
+            condWaitFor(nThreadID, 30000);
+            continue;
+        }
+
         if (nMinStakeInterval > 0 && nTimeLastStake + (int64_t)nMinStakeInterval > GetTime()) {
             LogPrint(BCLog::POS, "%s: Rate limited to 1 / %d seconds.\n", __func__, nMinStakeInterval);
             condWaitFor(nThreadID, nMinStakeInterval * 500); // nMinStakeInterval / 2 seconds

@@ -2010,6 +2010,12 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     }
 
+    bool fProofOfStake = block.IsProofOfStake();
+
+    if (fProofOfStake && (pindex->nHeight < Params().GetConsensus().nPosStartBlock)) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "pos-early");
+    }
+
     // change each block to prevent precalculation
     pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, pindex->prevoutStake.hash);
 
