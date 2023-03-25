@@ -114,6 +114,7 @@ struct Params {
 
     /** Multialgo parameters */
     int nMultiAlgoStartBlock;
+    int nPosStartBlock;
     int64_t nMultiAlgoTargetSpacing;
     int64_t nAveragingInterval;
     int64_t nAveragingTargetTimespan;
