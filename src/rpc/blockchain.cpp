@@ -432,7 +432,11 @@ static RPCHelpMan getdifficulty()
                 "\nReturns the proof-of-work difficulty of the current algorithm, as a multiple of the minimum difficulty.\n",
                 {},
                 RPCResult{
-                    RPCResult::Type::NUM, "", "the proof-of-work difficulty as a multiple of the minimum difficulty."},
+                    RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM, "proof-of-work", "the difficulty as a multiple of the minimum difficulty of proof of work blocks"},
+                            {RPCResult::Type::NUM, "proof-of-stake", "the difficulty as a multiple of the minimum difficulty of proof of stake blocks"},
+                        }},
                 RPCExamples{
                     HelpExampleCli("getdifficulty", "")
             + HelpExampleRpc("getdifficulty", "")
@@ -441,7 +445,10 @@ static RPCHelpMan getdifficulty()
 {
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
-    return GetDifficulty(chainman.ActiveChain().Tip());
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("proof-of-work", GetDifficulty(chainman.ActiveChain().Tip()));
+    obj.pushKV("proof-of-stake", GetDifficulty(GetLastPoSBlockIndex(chainman.ActiveChain().Tip())));
+    return obj;
 },
     };
 }
