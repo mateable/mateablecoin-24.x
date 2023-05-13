@@ -1098,10 +1098,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     const ArgsManager& args = *Assert(node.args);
     const CChainParams& chainparams = Params();
 
-    if (chainparams.NetworkIDString() != "test") {
-        // Remove before launch
-        return false;
-    }
 
     auto opt_max_upload = ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M);
     if (!opt_max_upload) {
