@@ -88,7 +88,7 @@ public:
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 
         // Mateablecoin specific parameters
-        consensus.nMultiAlgoStartBlock = 125000;
+        consensus.nMultiAlgoStartBlock = 150000;
         consensus.nPosStartBlock = consensus.nMultiAlgoStartBlock;
         consensus.nAveragingInterval = 10;
         consensus.nMultiAlgoTargetSpacing = 30 * NUM_ALGOS;
