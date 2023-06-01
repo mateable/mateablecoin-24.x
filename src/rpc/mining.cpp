@@ -792,10 +792,10 @@ static RPCHelpMan getblocktemplate()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"segwit\", \"signet\"]})");
     }
 
-    // GBT must be called with 'segwit' set in the rules
-    if (setClientRules.count("segwit") != 1) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
-    }
+//  // GBT must be called with 'segwit' set in the rules
+//  if (setClientRules.count("segwit") != 1) {
+//      throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
+//  }
 
     // Update block
     static CBlockIndex* pindexPrev;
@@ -826,6 +826,8 @@ static RPCHelpMan getblocktemplate()
 
     // Update nTime
     UpdateTime(pblock, consensusParams, pindexPrev);
+    pblock->nVersion |= GetVersionForAlgo(algoNum);
+    pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, false, Params().GetConsensus());
     pblock->nNonce = 0;
 
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
