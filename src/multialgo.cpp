@@ -122,6 +122,8 @@ unsigned int InitialDifficulty(int algo, const Consensus::Params& params)
 const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo, const Consensus::Params& params)
 {
     for (; pindex; pindex = pindex->pprev) {
+        if (pindex->IsProofOfStake())
+            continue;
         if (GetAlgoByIndex(pindex) != algo)
             continue;
         // ignore special min-difficulty testnet blocks
