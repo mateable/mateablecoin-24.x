@@ -1246,6 +1246,18 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
     return true;
 }
 
+void CWallet::AbandonOrphanedCoinstakes()
+{
+    for (auto& item : mapWallet) {
+        const uint256& wtxid = item.first;
+        CWalletTx& wtx = item.second;
+        assert(wtx.GetHash() == wtxid);
+        if (GetTxDepthInMainChain(wtx) == 0 && !wtx.isAbandoned() && wtx.IsCoinStake()) {
+            AbandonTransaction(wtxid);
+        }
+    }
+}
+
 void CWallet::MarkConflicted(const uint256& hashBlock, int conflicting_height, const uint256& hashTx)
 {
     LOCK(cs_wallet);

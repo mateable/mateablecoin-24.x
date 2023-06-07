@@ -361,8 +361,10 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
         size_t nWaitFor = stake_thread_cond_delay_ms;
         CAmount reserve_balance;
 
-        for (size_t i = nStart; i < nEnd; ++i) {
+        for (size_t i = nStart; i < nEnd; ++i)
+        {
             auto pwallet = vpwallets[i];
+            pwallet->AbandonOrphanedCoinstakes();
 
             if (!pwallet->fStakingEnabled) {
                 pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_DISABLED;

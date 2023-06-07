@@ -758,6 +758,9 @@ public:
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
 
+    /* Abandon orphaned coinstakes */
+    void AbandonOrphanedCoinstakes();
+
     /**
      * Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.
