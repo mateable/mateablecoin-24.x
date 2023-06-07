@@ -575,7 +575,6 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
 
             if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH)
             {
-                CPubKey pubKeyStake;
                 uint160 hash160(vSolutions[0]);
                 auto spk_man = wallet->GetLegacyScriptPubKeyMan();
                 if (!spk_man) {
@@ -614,7 +613,19 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
             }
             else if (whichType == TxoutType::PUBKEY)
             {
-                scriptPubKeyOut = scriptPubKeyKernel;
+                valtype& vchPubKey = vSolutions[0];
+                CPubKey pubKey(vchPubKey);
+                uint160 hash160(Hash160(vchPubKey));
+                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
+                if (!spk_man) {
+                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
+                    return false;
+                }
+                if (!spk_man->GetKey(CKeyID(hash160), key)) {
+                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
+                    return false;
+                }
+                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
             }
             else
             {
