@@ -1162,6 +1162,10 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
 
     Workspace ws(ptx);
 
+    if (ptx->HasWitness()) {
+        return MempoolAcceptResult::Failure(ws.m_state);
+    }
+
     if (!PreChecks(args, ws)) return MempoolAcceptResult::Failure(ws.m_state);
 
     if (m_rbf && !ReplacementChecks(ws)) return MempoolAcceptResult::Failure(ws.m_state);
