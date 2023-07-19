@@ -172,6 +172,12 @@ public:
         checkpointData = {
             {
                 {     0, genesis.GetHash()                                                             },
+                { 50000, uint256S("0x01a1a25c0e0ba51f36eaa3cd48987506cf61992456d3f45b5eaa66b0dfd5c7c7")},
+                {100000, uint256S("0x189e79d2fbbd40d6f8368394d57c09964f481d9efb62288464b0df268d07b202")},
+                {150000, uint256S("0x668ef40deed24d06cf5f5029fbbe3838e47c3089d2291074da752bf4c3c2aca3")},
+                {200000, uint256S("0x5aa5b2e1540a96844854e285623ec8eb93ccc120876eb485c36930af79e858f7")},
+                {250000, uint256S("0x71b4a4ae7244c99fe5bf2540216f6919fbff0d7ccd24f158d0ae2f03a0507d24")},
+                {300000, uint256S("0x62d6e9ea2159518467f24ad382bbdfa7ffa5a25ec9fd0233b11261f43a030471")},
             }
         };
 

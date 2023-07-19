@@ -127,6 +127,7 @@ RecursiveMutex cs_main;
 GlobalMutex g_best_block_mutex;
 std::condition_variable g_best_block_cv;
 uint256 g_best_block;
+bool g_ibd_done{false};
 bool g_parallel_script_checks{false};
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
@@ -1552,6 +1553,7 @@ bool Chainstate::IsInitialBlockDownload() const
         return true;
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
+    g_ibd_done = true;
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
     m_cached_finished_ibd.store(true, std::memory_order_relaxed);
     return false;
@@ -3353,6 +3355,7 @@ void Chainstate::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pin
 
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
+    if (!g_ibd_done) return true;
     bool isPoS = block.nNonce == 0;
 
     // Check proof of work matches claimed amount
@@ -3523,6 +3526,7 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
+    if (!g_ibd_done) return true;
     return std::all_of(headers.cbegin(), headers.cend(),
             [&](const auto& header) {
                 bool isPoS = !header.nNonce;
