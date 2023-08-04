@@ -361,6 +361,7 @@ libmateable_node_a_SOURCES = \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
+  chainworkdb.cpp \
   consensus/tx_verify.cpp \
   crypto/algo_sanity.cpp \
   crypto/algo_sanity.h \

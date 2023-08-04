@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <chainworkdb.h>
 #include <multialgo.h>
 #include <pow.h>
 #include <tinyformat.h>
@@ -142,6 +143,7 @@ arith_uint256 GetBlockProofBase(const CBlockIndex& block)
 arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& params)
 {
     CBlockHeader header = block.GetBlockHeader();
+    bool mainnet = Params().NetworkIDString() == CBaseChainParams::MAIN;
 
     const int nHeight = block.nHeight;
     if (nHeight < params.nMultiAlgoStartBlock)
@@ -152,6 +154,12 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
     }
     else
     {
+        if (mainnet && chainwork_db.HaveEntry(nHeight)) {
+            arith_uint256 entry{};
+            chainwork_db.GetEntry(nHeight, entry);
+            return entry;
+        }
+
         // Compute the geometric mean of the block targets for each individual algorithm.
         arith_uint256 bnAvgTarget(1);
 
@@ -175,6 +183,10 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
         arith_uint256 bnRes = (~bnAvgTarget / (bnAvgTarget + 1)) + 1;
         // Scale to roughly match the old work calculation
         bnRes <<= 7;
+
+        if (mainnet) {
+            chainwork_db.WriteEntry(nHeight, bnRes);
+        }
 
         return bnRes;
     }
