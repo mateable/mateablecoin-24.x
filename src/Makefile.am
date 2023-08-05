@@ -585,7 +585,32 @@ crypto_libmateable_crypto_base_la_SOURCES = \
   crypto/ghostrider/sph/sph_sha2.c \
   crypto/ghostrider/sph/sph_sha512.c \
   crypto/ghostrider/hash_selection.cpp \
-  crypto/balloon/balloon.cpp
+  crypto/balloon/balloon.cpp \
+  crypto/randomx/argon2_avx2.c \
+  crypto/randomx/argon2_core.c \
+  crypto/randomx/argon2_ref.c \
+  crypto/randomx/argon2_ssse3.c \
+  crypto/randomx/reciprocal.c \
+  crypto/randomx/virtual_memory.c \
+  crypto/randomx/aes_hash.cpp \
+  crypto/randomx/allocator.cpp \
+  crypto/randomx/assembly_generator_x86.cpp \
+  crypto/randomx/blake2_generator.cpp \
+  crypto/randomx/bytecode_machine.cpp \
+  crypto/randomx/cpu.cpp \
+  crypto/randomx/dataset.cpp \
+  crypto/randomx/instruction.cpp \
+  crypto/randomx/instructions_portable.cpp \
+  crypto/randomx/jit_compiler_x86.cpp \
+  crypto/randomx/randomx.cpp \
+  crypto/randomx/soft_aes.cpp \
+  crypto/randomx/superscalar.cpp \
+  crypto/randomx/virtual_machine.cpp \
+  crypto/randomx/vm_compiled.cpp \
+  crypto/randomx/vm_compiled_light.cpp \
+  crypto/randomx/vm_interpreted.cpp \
+  crypto/randomx/vm_interpreted_light.cpp
+
 
 if USE_ASM
 crypto_libmateable_crypto_base_la_SOURCES += crypto/sha256_sse4.cpp
