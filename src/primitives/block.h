@@ -58,6 +58,8 @@ public:
 
     uint256 GetPoWHash() const;
 
+    uint256 GetAuxHeaderHash() const;
+
     bool IsProofOfWork() const
     {
         return !IsProofOfStake();
