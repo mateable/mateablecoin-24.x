@@ -716,10 +716,8 @@ static RPCHelpMan getblocktemplate()
 
     // check to see if user has provided algorithm name, if not specified will instead use defaultAlgo (-algo=<name>)
     int algoNum;
-    std::string algoName;
     if (!request.params[1].isNull()) {
-        algoName = wallet::LabelFromValue(request.params[1]);
-        algoNum = MatchAlgoName(algoName);
+        algoNum = MatchAlgoName(request.params[1].get_str());
     } else {
         algoNum = defaultAlgo;
     }

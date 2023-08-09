@@ -7,6 +7,8 @@
 #include <chain.h>
 #include <util/system.h>
 
+#include <boost/algorithm/string.hpp>
+
 int defaultAlgo;
 
 const int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& params)
@@ -81,7 +83,7 @@ std::string GetAlgoName(int algo)
 const int MatchAlgoName(std::string userAlgo)
 {
     for (unsigned int i = 0; i < NUM_ALGOS; i++) {
-        if (userAlgo == GetAlgoName(i)) {
+        if (boost::to_lower_copy(userAlgo.substr(0,6)) == boost::to_lower_copy(GetAlgoName(i).substr(0,6))) {
             return i;
         }
     }
