@@ -79,6 +79,9 @@ public:
     {
         return (int64_t)nTime;
     }
+
+    friend class CAuxHeader;
+    friend class CMoneroHeader;
 };
 
 

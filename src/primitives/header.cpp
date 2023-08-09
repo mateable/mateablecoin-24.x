@@ -14,3 +14,10 @@ uint256 CBlockHeader::GetAuxHeaderHash() const
     CAuxHeader input{*this};
     return SerializeHash(input);
 }
+
+uint256 CAuxHeader::BuildMoneroHeader() const
+{
+    CMoneroHeader input{*this};
+    return SerializeHash(input);
+}
+    
