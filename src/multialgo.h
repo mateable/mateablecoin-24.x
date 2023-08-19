@@ -33,11 +33,11 @@ enum {
     BLOCK_VERSION_BALLOON = (8 << 8),
 };
 
-const int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& params);
-const int GetVersionForAlgo(int algo);
-const int GetAlgo(int nVersion);
-const int GetAlgoByIndex(const CBlockIndex* pindex);
-const int MatchAlgoName(std::string userAlgo);
+int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& params);
+int GetVersionForAlgo(int algo);
+int GetAlgo(int nVersion);
+int GetAlgoByIndex(const CBlockIndex* pindex);
+int MatchAlgoName(std::string userAlgo);
 std::string GetAlgoName(int algo);
 std::string GetAlgoNameByIndex(const CBlockIndex* pindex);
 bool IsAlgoActive(const CBlockIndex* pindexPrev, int algo, const Consensus::Params& params);
