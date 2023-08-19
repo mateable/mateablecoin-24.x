@@ -11,7 +11,7 @@
 
 int defaultAlgo;
 
-const int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& params)
+int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& params)
 {
     if (height < params.nMultiAlgoStartBlock) {
         return 1;
@@ -29,7 +29,7 @@ const int GetAlgoWorkFactor(int height, int algo, const Consensus::Params& param
     }
 }
 
-const int GetVersionForAlgo(int algo)
+int GetVersionForAlgo(int algo)
 {
     switch (algo) {
     case ALGO_SCRYPT:
@@ -46,7 +46,7 @@ const int GetVersionForAlgo(int algo)
     return 0;
 }
 
-const int GetAlgo(int nVersion)
+int GetAlgo(int nVersion)
 {
     switch (nVersion & BLOCK_VERSION_ALGO) {
     case BLOCK_VERSION_SCRYPT:
@@ -80,7 +80,7 @@ std::string GetAlgoName(int algo)
     return std::string("unknown");
 }
 
-const int MatchAlgoName(std::string userAlgo)
+int MatchAlgoName(std::string userAlgo)
 {
     for (unsigned int i = 0; i < NUM_ALGOS; i++) {
         if (boost::to_lower_copy(userAlgo.substr(0,6)) == boost::to_lower_copy(GetAlgoName(i).substr(0,6))) {
@@ -91,7 +91,7 @@ const int MatchAlgoName(std::string userAlgo)
     return ALGO_SCRYPT;
 }
 
-const int GetAlgoByIndex(const CBlockIndex* pindex)
+int GetAlgoByIndex(const CBlockIndex* pindex)
 {
     return GetAlgo(pindex->GetBlockHeader().nVersion);
 }
