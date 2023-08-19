@@ -584,6 +584,7 @@ static RPCHelpMan getblocktemplate()
                 }},
             },
                         "\"template_request\""},
+            {"algo", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "The algorithm if a different template is required."},
         },
         {
             RPCResult{"If the proposal was accepted with mode=='proposal'", RPCResult::Type::NONE, "", ""},
@@ -797,18 +798,19 @@ static RPCHelpMan getblocktemplate()
 
     // Update block
     static CBlockIndex* pindexPrev;
-    static int64_t nStart;
     static std::unique_ptr<CBlockTemplate> pblocktemplate;
-    if (pindexPrev != active_chain.Tip() ||
-        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5))
+    if (algoNum != defaultAlgo ||
+        pindexPrev != active_chain.Tip() ||
+        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast))
     {
+        defaultAlgo = algoNum;
+
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
         CBlockIndex* pindexPrevNew = active_chain.Tip();
-        nStart = GetTime();
 
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
