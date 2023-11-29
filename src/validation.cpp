@@ -1463,26 +1463,47 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     return result;
 }
 
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
-{
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
-
+CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams) {
+    // Define the initial block subsidy and minimum reward threshold
     CAmount nSubsidy;
+    CAmount minimumReward = 1 * COIN; // 1 MTBC
 
+    // Define the halving interval based on block height
+    int halvingInterval;
+
+    if (nHeight < 1000000) {
+        halvingInterval = 200000; // From 1st to 1M blocks, halve every 200k blocks
+    } else {
+        halvingInterval = 2000000; // After 1M blocks, halve every 2M blocks
+    }
+
+    // Calculate the number of halvings based on the dynamically adjusted interval
+    int halvings = nHeight / halvingInterval;
+
+    // Define the initial subsidy at block height 0
     if (nHeight == 0)
-	nSubsidy = 0 * COIN;
+        nSubsidy = 0 * COIN;
     else if (nHeight == 1)
-	nSubsidy = 100000000 * COIN;
+        nSubsidy = 100000000 * COIN;
     else
-	nSubsidy = 214 * COIN;
+        nSubsidy = 214 * COIN;
 
-    // Subsidy is cut in half eventually.
-    nSubsidy >>= halvings;
+    // Reduce the subsidy according to the number of halvings
+    for (int i = 0; i < halvings; ++i) {
+        // Check if the subsidy is greater than the minimum reward
+        if (nSubsidy > minimumReward) {
+            // Halve the subsidy only if it's above the minimum
+            nSubsidy /= 2;
+        } else {
+            // If the subsidy falls below the minimum, set it to the minimum reward
+            nSubsidy = minimumReward;
+            break; // Exit the halving loop
+        }
+    }
+
     return nSubsidy;
 }
+
 
 CoinsViews::CoinsViews(
     fs::path ldb_name,
