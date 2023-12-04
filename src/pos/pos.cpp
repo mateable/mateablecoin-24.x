@@ -51,7 +51,7 @@ double GetPoSKernelPS(CBlockIndex* pindex)
 
     CBlockIndex* pindexPrevStake = nullptr;
 
-    int nBestHeight = pindex->nHeight;
+    //int nBestHeight = pindex->nHeight;
 
     int nPoSInterval = 72; // blocks sampled
     double dStakeKernelsTriedAvg = 0;
@@ -190,7 +190,7 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
     // pindexPrev is the current tip, the block the new block will connect on to
     // nTime is the time of the new/next block
 
-    auto& pblocktree { chain_state.m_blockman.m_block_tree_db };
+    //auto& pblocktree { chain_state.m_blockman.m_block_tree_db };
 
     if (!tx.IsCoinStake() || tx.vin.size() < 1) {
         LogPrintf("ERROR: %s: malformed-txn %s\n", __func__, tx.GetHash().ToString());

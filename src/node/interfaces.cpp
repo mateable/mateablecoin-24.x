@@ -388,7 +388,7 @@ public:
     {
         return MakeHandler(
             ::uiInterface.NotifyHeaderTip_connect([fn](SynchronizationState sync_state, int64_t height, int64_t timestamp, bool presync) {
-                fn(sync_state, BlockTip{(int)height, timestamp, uint256{}}, presync);
+                fn(sync_state, BlockTip{(int)height, timestamp, uint256{}, uint256{}, ""}, presync);
             }));
     }
     NodeContext* context() override { return m_context; }
