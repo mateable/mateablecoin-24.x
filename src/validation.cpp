@@ -1465,22 +1465,44 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
+    CAmount nSubsidy = 0;
 
-    CAmount nSubsidy;
-
-    if (nHeight == 0)
-	nSubsidy = 0 * COIN;
-    else if (nHeight == 1)
-	nSubsidy = 100000000 * COIN;
-    else
-	nSubsidy = 214 * COIN;
-
-    // Subsidy is cut in half eventually.
-    nSubsidy >>= halvings;
+    // Block reward calculation logic
+    if (nHeight == 1) {
+        // 100,000,000 Premine within the first block
+        return 100000000 * COIN;
+    } else if (nHeight <= 199999) {
+        // Reward is 214 until block height 199,999
+        nSubsidy = 214 * COIN;
+    } else if (nHeight <= 399999) {
+        // Reward is 107 from block height 200,000 to 399,999
+        nSubsidy = 107 * COIN;
+    } else if (nHeight <= 599999) {
+        // Reward is 53.50 from block height 400,00 to 599,999
+        nSubsidy = 53.50 * COIN;
+    } else if (nHeight <= 799999) {
+        // Reward is 26.75 from block height 600,000 to 799,999
+        nSubsidy = 26.75 * COIN;
+    } else if (nHeight <= 999999) {
+        // Reward is 13.375 from block height 800,000 to 999,999
+        nSubsidy = 13.375 * COIN;
+    } else if (nHeight <= 1999999) {
+        // Reward is 6.6875 from block height 1,000,000 to 1,999,999
+        nSubsidy = 6.6875 * COIN;
+    } else if (nHeight <= 3999999) {
+        // Reward is 3.34375 from block height 2,000,000 to 3,999,999
+        nSubsidy = 3.34375 * COIN;
+    } else if (nHeight <= 3599999) {
+        // Reward is 1.671875 from block height 3,000,000 to 3,599,999
+        nSubsidy = 1.671875 * COIN;
+    } else if (nHeight <= 4599999) {
+        // Reward is 1 from block height 3,600,000 to 4,599,999
+        nSubsidy = 1 * COIN;
+    } else {
+        // For heights after the defined schedule, set a minimum reward
+        nSubsidy = 0.0000001 * COIN;
+    }
+    
     return nSubsidy;
 }
 
