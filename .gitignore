@@ -109,6 +109,9 @@ qrc_*.cpp
 .DS_Store
 build
 
+#VS Code specific
+.vscode
+
 # Previous releases
 releases
 
@@ -136,6 +139,7 @@ test/.mypy_cache/
 /doc/doxygen/
 
 libmateableconsensus.pc
+libbitcoinconsensus.pc
 contrib/devtools/split-debug.sh
 
 # Output from running db4 installation

@@ -307,7 +307,7 @@ blockmix_salsa8(const salsa20_blk_t *restrict Bin,
 	X2 = _mm_xor_si128(X2, (in)[2]); \
 	X3 = _mm_xor_si128(X3, (in)[3]);
 
-#define OUT(out) \
+#define YESCRYPT_OUT(out) \
 	(out)[0] = X0; \
 	(out)[1] = X1; \
 	(out)[2] = X2; \
@@ -357,7 +357,7 @@ blockmix(const salsa20_blk_t *restrict Bin, salsa20_blk_t *restrict Bout,
 		XOR4(Bin[i].q)
 		PWXFORM
 		/* B'_i <-- X */
-		OUT(Bout[i].q)
+		YESCRYPT_OUT(Bout[i].q)
 	}
 
 	/* Last iteration of the loop above */
@@ -495,7 +495,7 @@ blockmix_xor(const salsa20_blk_t *restrict Bin1,
 		XOR4(Bin2[i].q)
 		PWXFORM
 		/* B'_i <-- X */
-		OUT(Bout[i].q)
+		YESCRYPT_OUT(Bout[i].q)
 	}
 
 	/* Last iteration of the loop above */
@@ -619,7 +619,7 @@ blockmix_xor_save(const salsa20_blk_t *restrict Bin1,
 		XOR4_Y
 		PWXFORM
 		/* B'_i <-- X */
-		OUT(Bout[i].q)
+		YESCRYPT_OUT(Bout[i].q)
 	}
 
 	/* Last iteration of the loop above */
@@ -643,7 +643,7 @@ blockmix_xor_save(const salsa20_blk_t *restrict Bin1,
 #undef PWXFORM_SIMD_2
 #undef PWXFORM_ROUND
 #undef PWXFORM
-#undef OUT
+#undef YESCRYPT_OUT
 #undef XOR4
 #undef XOR4_2
 #undef XOR4_Y
