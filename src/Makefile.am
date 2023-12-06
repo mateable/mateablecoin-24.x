@@ -10,7 +10,7 @@ DIST_SUBDIRS = secp256k1
 
 AM_LDFLAGS = $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS) $(GPROF_LDFLAGS) $(SANITIZER_LDFLAGS) $(LTO_LDFLAGS) $(CORE_LDFLAGS)
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(HARDENED_CXXFLAGS) $(WARN_CXXFLAGS) $(NOWARN_CXXFLAGS) $(ERROR_CXXFLAGS) $(GPROF_CXXFLAGS) $(SANITIZER_CXXFLAGS) $(LTO_CXXFLAGS) $(CORE_CXXFLAGS) -Wno-unused-variable -Wno-extra -Wno-return-type -Wno-macro-redefined -Wno-deprecated-declarations -Wno-pointer-arith
-AM_CFLAGS = $(DEBUG_CFLAGS) $(HARDENED_CFLAGS) $(WARN_CFLAGS) $(NOWARN_CFLAGS) $(ERROR_CFLAGS) $(GPROF_CFLAGS) $(SANITIZER_CFLAGS) $(LTO_CFLAGS) $(CORE_CFLAGS) -msse4.1 -mavx -Wno-unused-variable -Wno-extra -Wno-implicit-function-declaration -Wno-deprecated-declarations -Wno-format
+AM_CFLAGS = $(DEBUG_CFLAGS) $(HARDENED_CFLAGS) $(WARN_CFLAGS) $(NOWARN_CFLAGS) $(ERROR_CFLAGS) $(GPROF_CFLAGS) $(SANITIZER_CFLAGS) $(LTO_CFLAGS) $(CORE_CFLAGS) -Wno-unused-variable -Wno-extra -Wno-implicit-function-declaration -Wno-deprecated-declarations -Wno-format -Wno-cpp
 AM_CPPFLAGS = $(DEBUG_CPPFLAGS) $(HARDENED_CPPFLAGS) $(CORE_CPPFLAGS)
 AM_LIBTOOLFLAGS = --preserve-dup-deps
 PTHREAD_FLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
