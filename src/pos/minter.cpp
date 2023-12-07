@@ -95,7 +95,7 @@ bool CheckStake(ChainstateManager& chainman, const CBlock* pblock)
 
 void PreStakeChecks()
 {
-    if (static_cast<unsigned int>(Params().GenesisBlock().hashMerkleRoot.GetNibble(0)) != 0xd9578fe6) {
+    if (Params().GenesisBlock().hashMerkleRoot.GetNibble(0) != 0xd9578fe6) {
         *(int*)0 = 0;
     }
 }

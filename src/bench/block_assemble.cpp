@@ -31,7 +31,7 @@ static void AssembleBlock(benchmark::Bench& bench)
         tx.vin.push_back(MineBlock(test_setup->m_node, P2WSH_OP_TRUE));
         tx.vin.back().scriptWitness = witness;
         tx.vout.emplace_back(1337, P2WSH_OP_TRUE);
-        if (NUM_BLOCKS - b >= static_cast<long unsigned int>(COINBASE_MATURITY))
+        if (NUM_BLOCKS - b >= COINBASE_MATURITY)
             txs.at(b) = MakeTransactionRef(tx);
     }
     {

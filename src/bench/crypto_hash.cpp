@@ -27,23 +27,23 @@ static void RIPEMD160(benchmark::Bench& bench)
     });
 }
 
-// static void SHA1(benchmark::Bench& bench)
-// {
-//     uint8_t hash[CSHA1::OUTPUT_SIZE];
-//     std::vector<uint8_t> in(BUFFER_SIZE,0);
-//     bench.batch(in.size()).unit("byte").run([&] {
-//         CSHA1().Write(in.data(), in.size()).Finalize(hash);
-//     });
-// }
+static void SHA1(benchmark::Bench& bench)
+{
+    uint8_t hash[CSHA1::OUTPUT_SIZE];
+    std::vector<uint8_t> in(BUFFER_SIZE,0);
+    bench.batch(in.size()).unit("byte").run([&] {
+        CSHA1().Write(in.data(), in.size()).Finalize(hash);
+    });
+}
 
-// static void SHA256(benchmark::Bench& bench)
-// {
-//     uint8_t hash[CSHA256::OUTPUT_SIZE];
-//     std::vector<uint8_t> in(BUFFER_SIZE,0);
-//     bench.batch(in.size()).unit("byte").run([&] {
-//         CSHA256().Write(in.data(), in.size()).Finalize(hash);
-//     });
-// }
+static void SHA256(benchmark::Bench& bench)
+{
+    uint8_t hash[CSHA256::OUTPUT_SIZE];
+    std::vector<uint8_t> in(BUFFER_SIZE,0);
+    bench.batch(in.size()).unit("byte").run([&] {
+        CSHA256().Write(in.data(), in.size()).Finalize(hash);
+    });
+}
 
 static void SHA3_256_1M(benchmark::Bench& bench)
 {
@@ -72,14 +72,14 @@ static void SHA256D64_1024(benchmark::Bench& bench)
     });
 }
 
-// static void SHA512(benchmark::Bench& bench)
-// {
-//     uint8_t hash[CSHA512::OUTPUT_SIZE];
-//     std::vector<uint8_t> in(BUFFER_SIZE,0);
-//     bench.batch(in.size()).unit("byte").run([&] {
-//         CSHA512().Write(in.data(), in.size()).Finalize(hash);
-//     });
-// }
+static void SHA512(benchmark::Bench& bench)
+{
+    uint8_t hash[CSHA512::OUTPUT_SIZE];
+    std::vector<uint8_t> in(BUFFER_SIZE,0);
+    bench.batch(in.size()).unit("byte").run([&] {
+        CSHA512().Write(in.data(), in.size()).Finalize(hash);
+    });
+}
 
 static void SipHash_32b(benchmark::Bench& bench)
 {
