@@ -156,6 +156,7 @@ public:
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,51);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,128);
+        base58Prefixes[SCRIPT_ADDRESS2] = std::vector<unsigned char>(1,63);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,170);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x08, 0xf2, 0xc6, 0xff};
         base58Prefixes[EXT_SECRET_KEY] = {0x08, 0xf2, 0xc2, 0x6b};
@@ -282,6 +283,7 @@ public:
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,51);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,128);
+        base58Prefixes[SCRIPT_ADDRESS2] = std::vector<unsigned char>(1,61);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,170);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
