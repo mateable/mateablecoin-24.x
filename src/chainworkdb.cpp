@@ -4,24 +4,36 @@
 
 #include <chainworkdb.h>
 
-ChainworkDB chainwork_db(GetDefaultDataDir() / "chainworkdb", 4194304, false, false);
+ChainworkDB::ChainworkDB() : initialized(false) {}
 
-ChainworkDB::ChainworkDB(fs::path ldb_path, size_t nCacheSize, bool fMemory, bool fWipe) :
-    db(ldb_path, nCacheSize, fMemory, fWipe, true)
-{}
+void ChainworkDB::Initialize(const fs::path& ldb_path, size_t nCacheSize, bool fMemory, bool fWipe)
+{
+    if (!initialized) {
+        this->ldb_path = ldb_path;
+        this->nCacheSize = nCacheSize;
+        this->fMemory = fMemory;
+        this->fWipe = fWipe;
+        db = std::make_unique<CDBWrapper>(ldb_path, nCacheSize, fMemory, fWipe, true);
+        initialized = true;
+    }
+}
+
+ChainworkDB chainwork_db;
 
 bool ChainworkDB::HaveEntry(const int& height) const {
-    return db.Exists(height);
+    if (!initialized) throw std::runtime_error("ChainworkDB not initialized");
+    return db->Exists(height);
 }
 
 void ChainworkDB::GetEntry(const int& height, arith_uint256& chainWork) const {
+    if (!initialized) throw std::runtime_error("ChainworkDB not initialized");
     uint256 temp{};
-    db.Read(height, temp);
+    db->Read(height, temp);
     chainWork = UintToArith256(temp);
 }
 
 void ChainworkDB::WriteEntry(const int& height, arith_uint256& chainWork) {
-    uint256 temp{};
-    temp = ArithToUint256(chainWork);
-    db.Write(height, temp);
+    if (!initialized) throw std::runtime_error("ChainworkDB not initialized");
+    uint256 temp = ArithToUint256(chainWork);
+    db->Write(height, temp);
 }

@@ -154,7 +154,7 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
     }
     else
     {
-        if (mainnet && chainwork_db.HaveEntry(nHeight)) {
+        if (mainnet && chainwork_db.IsInitialized() && chainwork_db.HaveEntry(nHeight)) {
             arith_uint256 entry{};
             chainwork_db.GetEntry(nHeight, entry);
             return entry;
