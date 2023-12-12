@@ -1099,6 +1099,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     const ArgsManager& args = *Assert(node.args);
     const CChainParams& chainparams = Params();
 
+    // Initialize chainwork_db
+    if (!AppInitParameterInteraction(*node.args)) return false;
+
+    // Deferred initialization of chainwork_db
+    fs::path dataDir = gArgs.GetDataDirNet();
+    chainwork_db.Initialize(dataDir / "chainworkdb", 4194304, false, false);
+
 
     auto opt_max_upload = ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M);
     if (!opt_max_upload) {
@@ -1125,13 +1132,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                   "also be data loss if bitcoin is started while in a temporary directory.\n",
                   args.GetArg("-datadir", ""), fs::PathToString(fs::current_path()));
     }
-
-    // Initialize chainwork_db
-    if (!AppInitParameterInteraction(*node.args)) return false;
-    
-    // Deferred initialization of chainwork_db
-    fs::path dataDir = gArgs.GetDataDirNet();
-    chainwork_db.Initialize(dataDir / "chainworkdb", 4194304, false, false);
 
     ValidationCacheSizes validation_cache_sizes{};
     ApplyArgsManOptions(args, validation_cache_sizes);

@@ -4,7 +4,7 @@
 
 #include <chainworkdb.h>
 
-ChainworkDB::ChainworkDB() : initialized(false) {}
+ChainworkDB::ChainworkDB() : db(nullptr), initialized(false) {}
 
 void ChainworkDB::Initialize(const fs::path& ldb_path, size_t nCacheSize, bool fMemory, bool fWipe)
 {

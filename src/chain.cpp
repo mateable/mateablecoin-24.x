@@ -184,7 +184,7 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
         // Scale to roughly match the old work calculation
         bnRes <<= 7;
 
-        if (mainnet) {
+        if (mainnet &&  chainwork_db.IsInitialized()) {
             chainwork_db.WriteEntry(nHeight, bnRes);
         }
 
