@@ -323,8 +323,9 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
     CAmount nFee;
     std::list<COutputEntry> listReceived;
     std::list<COutputEntry> listSent;
+    std::list<COutputEntry> listStaked;
 
-    CachedTxGetAmounts(wallet, wtx, listReceived, listSent, nFee, filter_ismine, include_change);
+    CachedTxGetAmounts(wallet, wtx, listReceived, listSent, listStaked, nFee, filter_ismine, include_change);
 
     bool involvesWatchonly = CachedTxIsFromMe(wallet, wtx, ISMINE_WATCH_ONLY);
 

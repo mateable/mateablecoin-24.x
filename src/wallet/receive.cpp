@@ -195,8 +195,10 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
 
 void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
                   std::list<COutputEntry>& listReceived,
-                  std::list<COutputEntry>& listSent, CAmount& nFee, const isminefilter& filter,
-                  bool include_change)
+                  std::list<COutputEntry>& listSent,
+                  std::list<COutputEntry>& listStaked,
+                  CAmount& nFee, const isminefilter& filter,
+                  bool include_change, bool fForFilterTx)
 {
     nFee = 0;
     listReceived.clear();
@@ -211,6 +213,47 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
     }
 
     LOCK(wallet.cs_wallet);
+
+    // Staked transaction processing
+    if (wtx.tx->IsCoinStake()) {
+        CAmount nCredit = 0;
+        CTxDestination address = CNoDestination();
+
+        isminetype isMineAll = ISMINE_NO;
+        for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            const CTxOut& txout = wtx.tx->vout[i];
+
+            isminetype mine = wallet.IsMine(txout);
+            if (!(mine & filter)) {
+                continue;
+            }
+            isMineAll = (isminetype)((uint8_t)isMineAll | (uint8_t)mine);
+
+            if (fForFilterTx) {
+                const CScript &scriptPubKey = txout.scriptPubKey;
+                if (!ExtractDestination(scriptPubKey, address)) {
+                    // Handle error or unknown type
+                    address = CNoDestination();
+                }
+            }
+            nCredit += txout.nValue;
+
+            if (fForFilterTx) {
+                COutputEntry output = {address, txout.nValue, (int)i, mine};
+                listStaked.push_back(output);
+            }
+        }
+        nFee = nDebit - nCredit; // Recalculate fee
+
+        if (fForFilterTx || !(isMineAll & filter)) {
+            return;
+        }
+
+        COutputEntry output = {address, nCredit, 1, isMineAll};
+        listStaked.push_back(output);
+        return;
+    }
+
     // Sent/received.
     for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i)
     {
