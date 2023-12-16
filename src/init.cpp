@@ -18,6 +18,7 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <chainworkdb.h>
 #include <consensus/amount.h>
 #include <crypto/algo_sanity.h>
 #include <deploymentstatus.h>
@@ -1097,6 +1098,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 {
     const ArgsManager& args = *Assert(node.args);
     const CChainParams& chainparams = Params();
+
+    // Initialize chainwork_db
+    if (!AppInitParameterInteraction(*node.args)) return false;
+
+    // Deferred initialization of chainwork_db
+    fs::path dataDir = gArgs.GetDataDirNet();
+    chainwork_db.Initialize(dataDir / "chainworkdb", 4194304, false, false);
 
 
     auto opt_max_upload = ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M);

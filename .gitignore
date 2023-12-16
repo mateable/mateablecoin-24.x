@@ -14,6 +14,7 @@ src/mateable-wallet
 src/test/fuzz/fuzz
 src/test/test_mateable
 src/qt/test/test_mateable-qt
+src/bench/bench_mateable
 
 # autoreconf
 Makefile.in
