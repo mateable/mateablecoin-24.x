@@ -1,8 +1,8 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 24)
 define(_CLIENT_VERSION_MINOR, 0)
-define(_CLIENT_VERSION_BUILD, 1)
-define(_CLIENT_VERSION_RC, 5)
+define(_CLIENT_VERSION_BUILD, 2)
+define(_CLIENT_VERSION_RC, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2023)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -211,7 +211,7 @@ AC_ARG_ENABLE([fuzz-binary],
     AS_HELP_STRING([--enable-fuzz-binary],
     [enable building of fuzz binary (default yes).]),
     [enable_fuzz_binary=$enableval],
-    [enable_fuzz_binary=yes])
+    [enable_fuzz_binary=no])
 
 AC_ARG_WITH([qrencode],
   [AS_HELP_STRING([--with-qrencode],
