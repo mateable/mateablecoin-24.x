@@ -55,6 +55,70 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
 
+static void FindGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const char* network)
+{
+    CBlock block = CreateGenesisBlock(nTime, nNonce, nBits, nVersion, 50 * COIN);
+
+    arith_uint256 bnTarget;
+    bnTarget.SetCompact(block.nBits);
+
+    for (uint32_t nNonce = 0; nNonce < UINT32_MAX; nNonce++) {
+        block.nNonce = nNonce;
+
+        uint256 hash = block.GetPoWHash();
+        if (nNonce % 48 == 0) {
+        	printf("\nrnonce=%d, pow is %s\n", nNonce, hash.GetHex().c_str());
+        }
+        if (UintToArith256(hash) <= bnTarget) {
+        	printf("\n%s net\n", network);
+        	printf("\ngenesis is %s\n", block.ToString().c_str());
+        	printf("\npow is %s\n", hash.GetHex().c_str());
+        	printf("\ngenesisNonce is %d\n", nNonce);
+        	std::cout << "Genesis Merkle " << block.hashMerkleRoot.GetHex() << std::endl;
+        	return;
+        }
+
+    }
+
+    // This is very unlikely to happen as we start the devnet with a very low difficulty. In many cases even the first
+    // iteration of the above loop will give a result already
+    error("%sNetGenesisBlock: could not find %s genesis block",network, network);
+    assert(false);
+}
+
+/// Verify the POW hash is valid for the genesis block
+/// If starting Nonce is not valid, search for one
+static void VerifyGenesisPOW(const CBlock& genesis)
+{
+    arith_uint256 bnTarget;
+    bnTarget.SetCompact(genesis.nBits);
+
+    CBlock block(genesis);
+    do
+    {
+        uint256 hash = block.GetPoWHash();
+        if (UintToArith256(hash) <= bnTarget)
+        {
+            if (genesis.nNonce != block.nNonce)
+            {
+                std::cerr << "VerifyGenesisPOW:  provided nNonce (" << genesis.nNonce << ") invalid" << std::endl;
+                std::cerr << "   nonce: " << block.nNonce << ", hash: 0x" << hash.ToString() << std::endl;
+                assert(genesis.nNonce == block.nNonce);
+            }
+            else
+            {
+                return;
+            }
+        }
+        ++block.nNonce;
+    }
+    while (block.nNonce != 0);
+
+    // We should never get here
+    error("VerifyGenesisPOW: could not find valid Nonce for genesis block");
+    assert(false);
+}
+
 /**
  * Main network on which people trade goods and services.
  */
@@ -73,6 +137,8 @@ public:
         consensus.BIP34Hash = uint256S("0x710b7221eb89313667d6cc1393f5ff7aac3cb51b6fcea3bf3d91b6d6a019ce86");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
+        consensus.CSVHeight = 419328;
+        consensus.SegwitHeight = 481824;
         consensus.MinBIP9WarningHeight = 483840; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 1 * 60;
@@ -105,17 +171,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        // Deployment of BIP68, BIP112, and BIP113.
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1658616000;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1658629000;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].min_activation_height = 0; // No activation delay
+        // // Deployment of BIP68, BIP112, and BIP113.
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1658616000;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1658629000;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].min_activation_height = 0; // No activation delay
 
-        // Deployment of SegWit (BIP141, BIP143, and BIP147)
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1658616000;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1658629000;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].min_activation_height = 0; // No activation delay
+        // // Deployment of SegWit (BIP141, BIP143, and BIP147)
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1658616000;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1658629000;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].min_activation_height = 0; // No activation delay
 
         // Deployment of Taproot (BIPs 340-342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
@@ -223,6 +289,8 @@ public:
         consensus.BIP34Hash = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
+        consensus.CSVHeight = 0;
+        consensus.SegwitHeight = std::numeric_limits<uint32_t>::max();
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
@@ -255,17 +323,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        // Deployment of BIP68, BIP112, and BIP113.
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].min_activation_height = 0; // No activation delay
+        // // Deployment of BIP68, BIP112, and BIP113.
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_CSV].min_activation_height = 0; // No activation delay
 
-        // Deployment of SegWit (BIP141, BIP143, and BIP147)
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].min_activation_height = 0; // No activation delay
+        // // Deployment of SegWit (BIP141, BIP143, and BIP147)
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        // consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].min_activation_height = 0; // No activation delay
 
         // Deployment of Taproot (BIPs 340-342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
@@ -385,6 +453,8 @@ public:
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 1;
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -450,14 +520,34 @@ public:
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1;  // Always active unless overridden
         consensus.BIP66Height = 1;  // Always active unless overridden
+        consensus.CSVHeight = 1;    // Always active unless overridden
+        consensus.SegwitHeight = 0; // Always active unless overridden
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
+        consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPosTargetTimespan = 5 * 60;
+        consensus.nPosTargetSpacing = 1 * 60;
+        consensus.nStakeMinAge = 10 * 60;
+        consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+
+        // Mateablecoin specific parameters
+        consensus.nMultiAlgoStartBlock = 0;
+        consensus.nPosStartBlock = consensus.nMultiAlgoStartBlock;
+        consensus.nAveragingInterval = 10;
+        consensus.nMultiAlgoTargetSpacing = 30 * NUM_ALGOS;
+        consensus.nMaxAdjustDown = 16;
+        consensus.nMaxAdjustUp = 8;
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nLocalTargetAdjustment = 4;
+        consensus.nCoinbaseMaturity = 20;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
@@ -483,10 +573,13 @@ public:
 
         UpdateActivationParametersFromArgs(args);
 
-        genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1703187494, 2, 0x207fffff, 4, 50 * COIN);
+        //FindGenesisBlock(1703187494, 0, 0x207fffff, 4, "main");
+        VerifyGenesisPOW(genesis);
+        //std::cout << "hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
         consensus.hashGenesisBlock = genesis.GetHash();
-        //assert(consensus.hashGenesisBlock == uint256S("0x0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"));
-        //assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+        assert(consensus.hashGenesisBlock == uint256S("0x62c61481ec5605be73e2c495c630cc6e2db620b1d3b59c74e331b0d8c0fbdaa4"));
+        assert(genesis.hashMerkleRoot == uint256S("0xd9578fe69963b3b99c1a61ba4a4a711699489cd9da6e40d36bb16446fe5565d6"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();
@@ -554,12 +647,16 @@ static void MaybeUpdateHeights(const ArgsManager& args, Consensus::Params& conse
         if (!ParseInt32(value, &height) || height < 0 || height >= std::numeric_limits<int>::max()) {
             throw std::runtime_error(strprintf("Invalid height value (%s) for -testactivationheight=name@height.", arg));
         }
-        if (name == "bip34") {
+        if (name == "segwit") {
+            consensus.SegwitHeight = int{height};
+        } else if (name == "bip34") {
             consensus.BIP34Height = int{height};
         } else if (name == "dersig") {
             consensus.BIP66Height = int{height};
         } else if (name == "cltv") {
             consensus.BIP65Height = int{height};
+        } else if (name == "csv") {
+            consensus.CSVHeight = int{height};
         } else {
             throw std::runtime_error(strprintf("Invalid name (%s) for -testactivationheight=name@height.", arg));
         }

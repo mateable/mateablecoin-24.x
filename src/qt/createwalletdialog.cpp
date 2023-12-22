@@ -86,11 +86,18 @@ CreateWalletDialog::CreateWalletDialog(QWidget* parent) :
         }
     });
 
-    ui->descriptor_checkbox->setToolTip(tr("Descriptor wallets disabled"));
-    ui->descriptor_checkbox->setEnabled(false);
-    ui->descriptor_checkbox->setChecked(false);
-    ui->external_signer_checkbox->setEnabled(false);
-    ui->external_signer_checkbox->setChecked(false);
+#ifndef USE_SQLITE
+        ui->descriptor_checkbox->setToolTip(tr("Compiled without sqlite support (required for descriptor wallets)"));
+        ui->descriptor_checkbox->setEnabled(false);
+        ui->descriptor_checkbox->setChecked(false);
+        ui->external_signer_checkbox->setEnabled(false);
+        ui->external_signer_checkbox->setChecked(false);
+#endif
+
+#ifndef USE_BDB
+        ui->descriptor_checkbox->setEnabled(false);
+        ui->descriptor_checkbox->setChecked(true);
+#endif
 
 #ifndef ENABLE_EXTERNAL_SIGNER
         //: "External signing" means using devices such as hardware wallets.

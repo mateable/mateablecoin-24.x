@@ -206,7 +206,18 @@ bool SignBlockWithKey(CBlock& block, const CKey& key)
 {
     std::vector<valtype> vSolutions;
     const CTxOut& txout = block.vtx[1]->vout[1];
+
     TxoutType whichType = Solver(txout.scriptPubKey, vSolutions);
+
+    CKeyID keyID;
+
+    if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH) {
+        keyID = CKeyID(uint160(vSolutions[0]));
+    } else if (whichType == TxoutType::PUBKEY) {
+        keyID = CPubKey(vSolutions[0]).GetID();
+    } else {
+        return false;
+    }
 
     if (!key.Sign(block.GetHash(), block.vchBlockSig)) {
         LogPrint(BCLog::POS, "%s: signing block with key type %s failed\n", __func__, GetTxnOutputType(whichType));

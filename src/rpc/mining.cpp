@@ -791,10 +791,10 @@ static RPCHelpMan getblocktemplate()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"segwit\", \"signet\"]})");
     }
 
-//  // GBT must be called with 'segwit' set in the rules
-//  if (setClientRules.count("segwit") != 1) {
-//      throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
-//  }
+    // GBT must be called with 'segwit' set in the rules
+    if (setClientRules.count("segwit") != 1) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
+    }
 
     // Update block
     static CBlockIndex* pindexPrev;
@@ -969,9 +969,9 @@ static RPCHelpMan getblocktemplate()
         result.pushKV("signet_challenge", HexStr(consensusParams.signet_challenge));
     }
 
-//  if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
-//      result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment));
-//  }
+    if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
+         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment));
+    }
 
     return result;
 },
