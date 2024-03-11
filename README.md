@@ -8,7 +8,7 @@
 
 
 </p>
-[mateablecoinBadge](https://img.shields.io/badge/Mateable-coin-blueviolet.svg)](https://coin.mateable.com)
+
 ## Mateable Core 24.x integration/staging tree
 -----
 
