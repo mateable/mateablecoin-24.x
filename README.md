@@ -1,7 +1,7 @@
 <h1 align="center">
 Mateable Core [MTBC]
 <br>
-v: 24.x
+v24.x
 <br/><br/>
 <img src="https://64.media.tumblr.com/230b42ccd0bbc026d5b1258bb8a8f92c/4fe9f521c4196e49-e7/s540x810/4e419bef2010b24459e969c46eaa4b9e20e710fd.pnj" alt="mateablecoin" width="300"/>
 </h1>
