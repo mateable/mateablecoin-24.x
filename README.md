@@ -7,7 +7,7 @@
 </p>
 
 ## Mateable Core 24.x integration/staging tree
-===========================================
+-----
 
 https://coin.mateable.com
 
