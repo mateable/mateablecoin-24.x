@@ -60,7 +60,7 @@ Main development resources:
   to discuss features, planned and unplanned, related to both the development of
   the Mateable Core software, the underlying protocols and the MATEABLE asset.  
 * [MateableCoin]  subreddit](https://www.reddit.com/r/Mateable/)
-* [Discord](https://discord.com/invite/9TF5QkTwFA)
+* [Discord](https://discord.gg/xGjxBRqfrh)
 
 ### Version strategy
 Version numbers are following ```major.minor.patch``` semantics.
