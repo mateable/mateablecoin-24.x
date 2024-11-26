@@ -61,101 +61,123 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     QPainter pixPaint(&pixmap);
     pixPaint.fillRect(pixmap.rect(), Qt::black); // Clearing pixmap with black color
     pixPaint.setPen(Qt::white); // Set text color to white
+
     QPixmap backgroundImage(":/icons/splash");
-    backgroundImage = backgroundImage.scaled(pixmap.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    backgroundImage = backgroundImage.scaled(pixmap.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     pixPaint.drawPixmap(0, 0, backgroundImage);
 
-    // draw a slightly radial gradient
-    //QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-    //gradient.setColorAt(0, Qt::white);
-    //gradient.setColorAt(1, QColor(247,247,247));
-    //QRect rGradient(QPoint(0,0), splashSize);
-    //pixPaint.fillRect(rGradient, gradient);
 
 // Calculate the desired size for the icon
-const int iconSize = 180; // Adjust this value as needed
+const int iconSize = 180; // Desired icon size
+int iconX = 15; // Horizontal position of the icon (left)
+int iconY = 20; // Vertical position of the icon (top)
 
-// Calculate the position for the icon based on the splash screen size
-int iconX = (splashSize.width() - iconSize) / 2 - 380; // Adjust this value to move the icon towards the rightint iconY = paddingTop; // Adjust this value to position the icon closer to the top// Define the QRect for the icon
-int iconY = paddingTop - 40; // Adjust this value to position the icon closer to the top
-
+// Define the rect for the icon based on the desired position and size
 QRect rectIcon(QPoint(iconX, iconY), QSize(iconSize, iconSize));
 
 // Load the icon with the desired size
 QPixmap icon(networkStyle->getAppIcon().pixmap(iconSize, iconSize));
-    pixPaint.drawPixmap(rectIcon, icon);
-// Calculate the position for the coin text
-int coinTextX = (splashSize.width() - QFontMetrics(QFont(font, 15 * fontFactor)).width(coinText)) / 2 - 380;
-int coinTextY = iconY + iconSize + titleCoinVSpace; // Adjust this value to position the coin text below the icon
+pixPaint.drawPixmap(rectIcon, icon);
 
-// Define colors for the text
-QColor mateableColor = QColor(Qt::white);
-QColor coinColor = QColor(Qt::white);
+// Calculate the width of the coin text based on the font size and scale factor
+QFontMetrics fm(QFont(font, 15 * fontFactor));  // Declare once and reuse
+int coinTextWidth = fm.width(coinText);  // Get the width of the "MateableCoin" text
+
+// Calculate the horizontal position to center the coin text under the icon
+int coinTextX = iconX + (iconSize - coinTextWidth) / 2; // Center the coin text horizontally with respect to the icon
+
+// Calculate the vertical position for the coin text (below the icon)
+int coinTextY = iconY + iconSize + titleCoinVSpace; // Position text below the icon with the desired spacing
 
 // Draw the "Mateable" text
 pixPaint.setFont(QFont(font, 15 * fontFactor, QFont::Bold));
-pixPaint.setPen(mateableColor); // Set the color for the "Mateable" text
+pixPaint.setPen(Qt::white); // Set text color to white
 pixPaint.drawText(coinTextX, coinTextY, "Mateable");
 
-// Calculate the position for the "Coin" text within the same line
-int coinTextWidth = QFontMetrics(QFont(font, 15 * fontFactor)).width("Mateable");
-coinTextX += coinTextWidth; // Adjust the position to follow "Mateable"
+// Calculate the width of the "Mateable" text to properly position "Coin"
+coinTextWidth = fm.width("Mateable");  // Calculate width of the "Mateable" part
 
-// Add an offset to ensure the "Coin" text starts after "Mateable" without overlapping
-int coinTextXOffset = 13; // Adjust this value as needed to add spacing between "Mateable" and "Coin"
-coinTextX += coinTextXOffset;
+// Adjust position for "Coin" text to follow "Mateable"
+coinTextX += coinTextWidth + 13; // Add some spacing after "Mateable"
 
 // Draw the "Coin" text
-pixPaint.setPen(coinColor); // Set the color for the "Coin" text
+pixPaint.setPen(Qt::white); // Set text color to white
 pixPaint.drawText(coinTextX, coinTextY, "Coin");
 
-    // check font size and drawing with
-    pixPaint.setFont(QFont(font, 33*fontFactor, QFont::Bold));
-    QFontMetrics fm = pixPaint.fontMetrics();
-    int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
-    if (titleTextWidth > 176) {
-        fontFactor = fontFactor * 176 / titleTextWidth;
-    }
 
-    // Calculate the position for the title text
-    int titleX = pixmap.width() / devicePixelRatio - titleTextWidth - paddingRight;
+// Define a rightward offset (in pixels)
+int rightOffset = -70;//Adjust this value to move the text further right
 
-    pixPaint.setFont(QFont(font, 33*fontFactor, QFont::Bold));
+// Initialize font and painter
+QFont titleFont(font, 33 * fontFactor, QFont::Bold);
+pixPaint.setFont(titleFont);
+fm = pixPaint.fontMetrics();
+
+// Check and adjust title text width
+int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
+if (titleTextWidth > 176) {
+    fontFactor *= 176.0 / titleTextWidth;
+    titleFont.setPointSizeF(33 * fontFactor);
+    pixPaint.setFont(titleFont);
     fm = pixPaint.fontMetrics();
-    titleTextWidth  = GUIUtil::TextWidth(fm, titleText);
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop,titleText);
-
-    pixPaint.setFont(QFont(font, 15*fontFactor, QFont::Bold));
-
-    // if the version string is too long, reduce size
-    fm = pixPaint.fontMetrics();
-    int versionTextWidth  = GUIUtil::TextWidth(fm, versionText);
-    if(versionTextWidth > titleTextWidth+paddingRight-10) {
-        pixPaint.setFont(QFont(font, 10*fontFactor));
-        titleVersionVSpace -= 5;
-    }
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
-    
-
-    // Calculate the position for the copyright text
-    int copyrightX = titleX + 90; // Adjust this value to position the copyright text slightly to the left of the title text
-
-// Draw copyright stuff
-{
-    pixPaint.setFont(QFont(font, 15*fontFactor, QFont::Bold));
-    const int y = paddingTop + titleCopyrightVSpace;
-    QRect copyrightRect(copyrightX, y, pixmap.width() - copyrightX - paddingRight, pixmap.height() - y);
-    pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, getClientCopyright());
+    titleTextWidth = GUIUtil::TextWidth(fm, titleText);
 }
-    // draw additional text if special network
-   if(!titleAddText.isEmpty()) {
-        QFont boldFont = QFont(font, 10*fontFactor);
-        boldFont.setWeight(QFont::Bold);
-        pixPaint.setFont(boldFont);
-        fm = pixPaint.fontMetrics();
-        int titleAddTextWidth  = GUIUtil::TextWidth(fm, titleAddText);
-        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-10,15,titleAddText);
-    }
+
+// Calculate title text position with rightward offset
+int titleX = (pixmap.width() / devicePixelRatio - titleTextWidth - paddingRight + rightOffset); // Move to the right
+pixPaint.drawText(titleX, paddingTop, titleText);
+
+// Version text
+QFont versionFont(font, 15 * fontFactor, QFont::Bold);
+pixPaint.setFont(versionFont);
+fm = pixPaint.fontMetrics();
+
+int versionTextWidth = GUIUtil::TextWidth(fm, versionText);
+if (versionTextWidth > titleTextWidth + paddingRight - 10) {
+    versionFont.setPointSizeF(10 * fontFactor);
+    pixPaint.setFont(versionFont);
+    titleVersionVSpace -= 5;
+}
+
+pixPaint.drawText(
+    titleX, // Align with title text and right offset
+    paddingTop + titleVersionVSpace,
+    versionText
+);
+
+// Copyright text
+QFont copyrightFont(font, 15 * fontFactor, QFont::Bold);
+pixPaint.setFont(copyrightFont);
+const int copyrightY = paddingTop + titleCopyrightVSpace;
+
+QRect copyrightRect(
+    titleX, // Align with title text and right offset
+    copyrightY,
+    pixmap.width() / devicePixelRatio - titleX - paddingRight,
+    pixmap.height() - copyrightY
+);
+
+pixPaint.drawText(
+    copyrightRect,
+    Qt::AlignLeft | Qt::AlignTop,
+    getClientCopyright()
+);
+
+// Additional network-specific text
+if (!titleAddText.isEmpty()) {
+    QFont addTextFont(font, 10 * fontFactor, QFont::Bold);
+    pixPaint.setFont(addTextFont);
+    fm = pixPaint.fontMetrics();
+
+    int titleAddTextWidth = GUIUtil::TextWidth(fm, titleAddText);
+    int titleAddTextX = (pixmap.width() / devicePixelRatio - titleAddTextWidth - 10 + rightOffset); // Move to the right
+    pixPaint.drawText(
+        titleAddTextX,
+        paddingTop + 15,
+        titleAddText
+    );
+}
+
 
     pixPaint.end();
 
