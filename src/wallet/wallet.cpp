@@ -1926,6 +1926,8 @@ bool CWallet::SubmitTxMemoryPoolAndRelay(CWalletTx& wtx, std::string& err_string
     // Don't try to submit coinbase transactions. These would fail anyway but would
     // cause log spam.
     if (wtx.IsCoinBase()) return false;
+    // Don't relay coinstake transactions outside blocks
+	if (wtx.IsCoinStake()) return false;
     // Don't try to submit conflicted or confirmed transactions.
     if (GetTxDepthInMainChain(wtx) != 0) return false;
 
