@@ -38,7 +38,7 @@
 #include <wallet/context.h>
 #include <wallet/fees.h>
 #include <wallet/external_signer_scriptpubkeyman.h>
-
+#include <wallet/receive.h>
 #include <univalue.h>
 
 #include <algorithm>
@@ -1489,6 +1489,34 @@ CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) co
     return nDebit;
 }
 
+CAmount CWallet::GetStakingRewards() const {
+    CAmount nTotalRewards = 0;
+    LOCK(cs_wallet); // Lock wallet for safe access
+
+    for (const auto& it : mapWallet) {
+        const CWalletTx& wtx = it.second;
+
+        // Get confirmation depth using wallet method
+        int depth = GetTxDepthInMainChain(wtx);
+
+        // Only count confirmed staking transactions
+        if (!wtx.IsCoinStake() || depth < Params().GetConsensus().nCoinbaseMaturity) {
+            continue;
+        }
+
+        // Calculate staking reward
+        CAmount nCredit = CachedTxGetCredit(*this, wtx, ISMINE_ALL);
+        CAmount nDebit = CachedTxGetDebit(*this, wtx, ISMINE_ALL);
+        CAmount nReward = nCredit - nDebit;
+
+        if (nReward > 0) {
+            nTotalRewards += nReward;
+        }
+    }
+
+    return nTotalRewards;
+}
+
 bool CWallet::IsHDEnabled() const
 {
     // All Active ScriptPubKeyMans must be HD for this to be true
@@ -1898,6 +1926,8 @@ bool CWallet::SubmitTxMemoryPoolAndRelay(CWalletTx& wtx, std::string& err_string
     // Don't try to submit coinbase transactions. These would fail anyway but would
     // cause log spam.
     if (wtx.IsCoinBase()) return false;
+    // Don't relay coinstake transactions outside blocks
+	if (wtx.IsCoinStake()) return false;
     // Don't try to submit conflicted or confirmed transactions.
     if (GetTxDepthInMainChain(wtx) != 0) return false;
 

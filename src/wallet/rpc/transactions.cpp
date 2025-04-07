@@ -20,8 +20,14 @@ static void WalletTxToJSON(const CWallet& wallet, const CWalletTx& wtx, UniValue
     interfaces::Chain& chain = wallet.chain();
     int confirms = wallet.GetTxDepthInMainChain(wtx);
     entry.pushKV("confirmations", confirms);
-    if (wtx.IsCoinBase())
+    // Add stake detection
+    if (wtx.IsCoinStake()) {
+        entry.pushKV("category", "stake");
+    }
+    else if (wtx.IsCoinBase()) {
         entry.pushKV("generated", true);
+    }
+
     if (auto* conf = wtx.state<TxStateConfirmed>())
     {
         entry.pushKV("blockhash", conf->confirmed_block_hash.GetHex());
@@ -329,6 +335,13 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
 
     bool involvesWatchonly = CachedTxIsFromMe(wallet, wtx, ISMINE_WATCH_ONLY);
 
+    // Calculate actual stake reward if this is a staking transaction
+    CAmount nStakeReward = 0;
+    if (wtx.IsCoinStake()) {
+        CAmount nDebit = CachedTxGetDebit(wallet, wtx, filter_ismine);
+        nStakeReward = wtx.tx->GetValueOut() - nDebit;
+    }
+
     // Sent
     if (!filter_label)
     {
@@ -350,6 +363,46 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
             if (fLong)
                 WalletTxToJSON(wallet, wtx, entry);
             entry.pushKV("abandoned", wtx.isAbandoned());
+            ret.push_back(entry);
+        }
+    }
+
+    // Staked transactions
+    if (listStaked.size() > 0 && wallet.GetTxDepthInMainChain(wtx) >= nMinDepth) {
+        bool rewardShown = false;
+        for (const COutputEntry& r : listStaked) {
+            std::string label;
+            const auto* address_book_entry = wallet.FindAddressBookEntry(r.destination);
+            if (address_book_entry) {
+                label = address_book_entry->GetLabel();
+            }
+            if (filter_label && label != *filter_label) {
+                continue;
+            }
+            
+            UniValue entry(UniValue::VOBJ);
+            if (involvesWatchonly || (wallet.IsMine(r.destination) & ISMINE_WATCH_ONLY)) {
+                entry.pushKV("involvesWatchonly", true);
+            }
+            MaybePushAddress(entry, r.destination);
+            PushParentDescriptors(wallet, wtx.tx->vout.at(r.vout).scriptPubKey, entry);
+            entry.pushKV("category", "stake");
+            
+            // For the first reward output, show the actual net reward
+            if (!rewardShown && nStakeReward > 0) {
+                entry.pushKV("amount", ValueFromAmount(nStakeReward));
+                rewardShown = true;
+            } else {
+                entry.pushKV("amount", ValueFromAmount(r.amount));
+            }
+            
+            if (address_book_entry) {
+                entry.pushKV("label", label);
+            }
+            entry.pushKV("vout", r.vout);
+            if (fLong) {
+                WalletTxToJSON(wallet, wtx, entry);
+            }
             ret.push_back(entry);
         }
     }
@@ -396,7 +449,6 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
         }
     }
 }
-
 
 static const std::vector<RPCResult> TransactionDescriptionString()
 {
@@ -698,6 +750,7 @@ RPCHelpMan gettransaction()
                         {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
                         {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the\n"
                                      "'send' category of transactions."},
+                        {RPCResult::Type::STR_AMOUNT, "reward", /*optional=*/true, "The staking reward amount in " + CURRENCY_UNIT + ". Only available for 'stake' category."},
                     },
                     TransactionDescriptionString()),
                     {
@@ -712,6 +765,7 @@ RPCHelpMan gettransaction()
                                     "\"receive\"               Non-coinbase transactions received.\n"
                                     "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
                                     "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
+                                    "\"stake\"                 Staking rewards received.\n"
                                     "\"orphan\"                Orphaned coinbase transactions received."},
                                 {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
                                 {RPCResult::Type::STR, "label", /*optional=*/true, "A comment for the address/transaction, if any"},
@@ -769,18 +823,48 @@ RPCHelpMan gettransaction()
     CAmount nCredit = CachedTxGetCredit(*pwallet, wtx, filter);
     CAmount nDebit = CachedTxGetDebit(*pwallet, wtx, filter);
     CAmount nNet = nCredit - nDebit;
-    CAmount nFee = (CachedTxIsFromMe(*pwallet, wtx, filter) ? wtx.tx->GetValueOut() - nDebit : 0);
+    CAmount nFee = 0;
+    CAmount nActualReward = 0;
 
-    entry.pushKV("amount", ValueFromAmount(nNet - nFee));
-    if (CachedTxIsFromMe(*pwallet, wtx, filter))
-        entry.pushKV("fee", ValueFromAmount(nFee));
+    if (wtx.IsCoinStake()) {
+        nActualReward = wtx.tx->GetValueOut() - nDebit;
+        entry.pushKV("reward", ValueFromAmount(nActualReward));
+        entry.pushKV("amount", ValueFromAmount(nActualReward));
+        entry.pushKV("category", "stake");
+    } else {
+        // Regular transaction
+        nFee = (CachedTxIsFromMe(*pwallet, wtx, filter) ? wtx.tx->GetValueOut() - nDebit : 0);
+        entry.pushKV("amount", ValueFromAmount(nNet - nFee));
+        if (CachedTxIsFromMe(*pwallet, wtx, filter)) {
+            entry.pushKV("fee", ValueFromAmount(nFee));
+        }
+    }
 
     WalletTxToJSON(*pwallet, wtx, entry);
 
     UniValue details(UniValue::VARR);
     ListTransactions(*pwallet, wtx, 0, false, details, filter, nullptr /* filter_label */);
-    entry.pushKV("details", details);
-
+    UniValue newDetails(UniValue::VARR);  
+  
+    if (wtx.IsCoinStake()) {
+        bool rewardShown = false;
+        for (size_t i = 0; i < details.size(); i++) {
+            UniValue detail = details[i];
+            if (detail["amount"].get_real() > 0) {
+                detail.pushKV("category", "stake");
+                if (!rewardShown) {
+                    detail.pushKV("amount", ValueFromAmount(nActualReward));
+                    newDetails.push_back(detail);
+                    rewardShown = true;
+                }
+            } else {
+                newDetails.push_back(detail);
+            }
+        }
+    } else {
+        newDetails = details;
+    }
+    entry.pushKV("details", newDetails);
     std::string strHex = EncodeHexTx(*wtx.tx, pwallet->chain().rpcSerializationFlags());
     entry.pushKV("hex", strHex);
 

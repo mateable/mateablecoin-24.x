@@ -392,6 +392,8 @@ public:
     bool IsLocked() const override;
     bool Lock();
 
+    CAmount GetStakingRewards() const;
+
     /** Interface to assert chain access */
     bool HaveChain() const { return m_chain ? true : false; }
 
