@@ -447,7 +447,7 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
 {
     const Consensus::Params& params = Params().GetConsensus();
 
-    // fetch suitable coins
+    // Fetch suitable coins
     std::vector<wallet::COutput> vCoins;
     {
         LOCK(wallet->cs_wallet);
@@ -460,12 +460,22 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
     setCoinsRet.clear();
     nValueRet = 0;
 
+    // Iterate over the available coins
     for (const auto& output : vCoins) {
         const auto& txout = output.txout;
-        int input_age = GetTime() - output.time;
-        if (input_age < params.nStakeMinAge || input_age > params.nStakeMaxAge) {
-            LogPrint(BCLog::POS, "not using %s: age params not met\n", txout.ToString());
-            continue;
+        int input_age = GetTime() - output.time;  // Coin age calculation
+        
+        // Log the age of each coin being processed
+        LogPrint(BCLog::POS, "Processing coin: %s, Age: %d seconds\n", txout.ToString(), input_age);
+
+        // Check if the coin's age meets the staking criteria (between min and max stake age)
+        if (input_age < params.nStakeMinAge) {
+            LogPrint(BCLog::POS, "not using %s: age too young (min age %d seconds)\n", txout.ToString(), params.nStakeMinAge);
+            continue;  // Coin is too young to stake
+        }
+        if (input_age > params.nStakeMaxAge) {
+            LogPrint(BCLog::POS, "not using %s: age too old (max age %d seconds)\n", txout.ToString(), params.nStakeMaxAge);
+            continue;  // Coin is too old to stake
         }
 
         {
@@ -473,7 +483,7 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
             COutPoint kernel(output.outpoint);
             if (!CheckStakeUnused(kernel) || wallet->IsLockedCoin(kernel)) {
                 LogPrint(BCLog::POS, "not using %s: already used or coin is locked\n", txout.ToString());
-                continue;
+                continue;  // Coin is already used or locked
             }
         }
 
@@ -481,13 +491,14 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
             LOCK(wallet->cs_wallet);
             wallet::isminetype mine = wallet->IsMine(txout);
             if (!(mine & wallet::ISMINE_SPENDABLE)) {
-                LogPrint(BCLog::POS, "not using %s: isnt mine/not spendable\n", txout.ToString());
-                continue;
+                LogPrint(BCLog::POS, "not using %s: isn't mine/not spendable\n", txout.ToString());
+                continue;  // Coin isn't spendable (doesn't belong to the wallet)
             }
         }
 
-        // Stop if we've chosen enough inputs
+        // Stop if we've chosen enough inputs (target reached)
         if (nValueRet >= nTargetValue) {
+            LogPrint(BCLog::POS, "Selected enough coins. Staking total value: %d\n", nValueRet);
             break;
         }
 
@@ -500,13 +511,15 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
         }
 
         if (n >= nTargetValue) {
-            // If input value is greater or equal to target then simply insert
-            //    it into the current subset and exit
+            // If input value is greater or equal to target, insert and exit
+            LogPrint(BCLog::POS, "Using coin %s: value %d exceeds or matches target\n", txout.ToString(), n);
             setCoinsRet.insert(coin.second);
             nValueRet += coin.first;
             break;
         } else {
             if (n < nTargetValue + CENT) {
+                // If input value is less than target but close enough, add it to the set
+                LogPrint(BCLog::POS, "Using coin %s: value %d added to staking\n", txout.ToString(), n);
                 setCoinsRet.insert(coin.second);
                 nValueRet += coin.first;
             }
