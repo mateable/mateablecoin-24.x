@@ -95,7 +95,7 @@ bool CheckStake(ChainstateManager& chainman, const CBlock* pblock)
 
 void PreStakeChecks()
 {
-    if (static_cast<unsigned int>(Params().GenesisBlock().hashMerkleRoot.GetNibble(0)) != 0xd9578fe6) {
+    if (Params().GenesisBlock().hashMerkleRoot.GetNibble(0) != 0xd9578fe6) {
         *(int*)0 = 0;
     }
 }
@@ -365,6 +365,12 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
         {
             auto pwallet = vpwallets[i];
             pwallet->AbandonOrphanedCoinstakes();
+            
+            if (pwallet->IsStakingPaused()) {
+            pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_PAUSED;
+            nWaitFor = std::min(nWaitFor, (size_t)5000); // Check every 1 second
+            continue;
+            }
 
             if (!pwallet->fStakingEnabled) {
                 pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_DISABLED;
@@ -590,6 +596,7 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
 
             if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH)
             {
+                CPubKey pubKeyStake;
                 uint160 hash160(vSolutions[0]);
                 auto spk_man = wallet->GetLegacyScriptPubKeyMan();
                 if (!spk_man) {
@@ -628,19 +635,8 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
             }
             else if (whichType == TxoutType::PUBKEY)
             {
-                valtype& vchPubKey = vSolutions[0];
-                CPubKey pubKey(vchPubKey);
-                uint160 hash160(Hash160(vchPubKey));
-                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
-                if (!spk_man) {
-                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
-                    return false;
-                }
-                if (!spk_man->GetKey(CKeyID(hash160), key)) {
-                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
-                    return false;
-                }
-                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
+                
+                scriptPubKeyOut = scriptPubKeyKernel;
             }
             else
             {

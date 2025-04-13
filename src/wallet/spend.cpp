@@ -1050,12 +1050,13 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
 }
 
 util::Result<CreatedTransactionResult> CreateTransaction(
-        CWallet& wallet,
-        const std::vector<CRecipient>& vecSend,
-        int change_pos,
-        const CCoinControl& coin_control,
-        bool sign)
+    CWallet& wallet,
+    const std::vector<CRecipient>& vecSend,
+    int change_pos,
+    const CCoinControl& coin_control,
+    bool sign)
 {
+    // Input validation (keep your existing checks)
     if (vecSend.empty()) {
         return util::Error{_("Transaction must have at least one recipient")};
     }
@@ -1064,30 +1065,60 @@ util::Result<CreatedTransactionResult> CreateTransaction(
         return util::Error{_("Transaction amounts must not be negative")};
     }
 
+    // 1. Pause staking at the very start (60 seconds)
+    wallet.PauseStaking(60);
+
+    // We'll use this to ensure staking resumes if anything fails
+    const auto staking_cleanup = [&wallet](bool success) {
+        if (!success) {
+            wallet.ResumeStaking(); // Only resume immediately on failure
+        }
+        // On success, let the timeout handle it
+    };
+
     LOCK(wallet.cs_wallet);
 
-    auto res = CreateTransactionInternal(wallet, vecSend, change_pos, coin_control, sign);
-    TRACE4(coin_selection, normal_create_tx_internal, wallet.GetName().c_str(), bool(res),
-           res ? res->fee : 0, res ? res->change_pos : 0);
-    if (!res) return res;
-    const auto& txr_ungrouped = *res;
-    // try with avoidpartialspends unless it's enabled already
-    if (txr_ungrouped.fee > 0 /* 0 means non-functional fee rate estimation */ && wallet.m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
-        TRACE1(coin_selection, attempting_aps_create_tx, wallet.GetName().c_str());
-        CCoinControl tmp_cc = coin_control;
-        tmp_cc.m_avoid_partial_spends = true;
-        auto txr_grouped = CreateTransactionInternal(wallet, vecSend, change_pos, tmp_cc, sign);
-        // if fee of this alternative one is within the range of the max fee, we use this one
-        const bool use_aps{txr_grouped.has_value() ? (txr_grouped->fee <= txr_ungrouped.fee + wallet.m_max_aps_fee) : false};
-        TRACE5(coin_selection, aps_create_tx_internal, wallet.GetName().c_str(), use_aps, txr_grouped.has_value(),
-               txr_grouped.has_value() ? txr_grouped->fee : 0, txr_grouped.has_value() ? txr_grouped->change_pos : 0);
-        if (txr_grouped) {
-            wallet.WalletLogPrintf("Fee non-grouped = %lld, grouped = %lld, using %s\n",
-                txr_ungrouped.fee, txr_grouped->fee, use_aps ? "grouped" : "non-grouped");
-            if (use_aps) return txr_grouped;
+    try {
+        // 2. Your existing transaction creation logic
+        auto res = CreateTransactionInternal(wallet, vecSend, change_pos, coin_control, sign);
+        TRACE4(coin_selection, normal_create_tx_internal, wallet.GetName().c_str(), bool(res),
+               res ? res->fee : 0, res ? res->change_pos : 0);
+
+        // 3. If transaction creation failed
+        if (!res) {
+            staking_cleanup(false);
+            return res;
         }
+
+        const auto& txr_ungrouped = *res;
+        
+        // 4. Your existing avoidpartialspends logic
+        if (txr_ungrouped.fee > 0 && wallet.m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
+            TRACE1(coin_selection, attempting_aps_create_tx, wallet.GetName().c_str());
+            CCoinControl tmp_cc = coin_control;
+            tmp_cc.m_avoid_partial_spends = true;
+            auto txr_grouped = CreateTransactionInternal(wallet, vecSend, change_pos, tmp_cc, sign);
+            
+            if (txr_grouped) {
+                const bool use_aps = txr_grouped->fee <= txr_ungrouped.fee + wallet.m_max_aps_fee;
+                TRACE5(coin_selection, aps_create_tx_internal, wallet.GetName().c_str(), use_aps, txr_grouped.has_value(),
+                       txr_grouped.has_value() ? txr_grouped->fee : 0, txr_grouped.has_value() ? txr_grouped->change_pos : 0);
+                
+                wallet.WalletLogPrintf("Fee non-grouped = %lld, grouped = %lld, using %s\n",
+                    txr_ungrouped.fee, txr_grouped->fee, use_aps ? "grouped" : "non-grouped");
+                
+                if (use_aps) return txr_grouped;
+            }
+        }
+
+        // 5. If everything succeeded, return result (staking will auto-resume after timeout)
+        return res;
+
+    } catch (...) {
+        // 6. Catch any unexpected exceptions and resume staking
+        staking_cleanup(false);
+        throw;
     }
-    return res;
 }
 
 bool FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, CCoinControl coinControl)

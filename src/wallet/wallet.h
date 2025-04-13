@@ -391,7 +391,7 @@ public:
     bool IsCrypted() const;
     bool IsLocked() const override;
     bool Lock();
-
+    
     CAmount GetStakingRewards() const;
 
     /** Interface to assert chain access */
@@ -607,7 +607,6 @@ public:
     bool ImportPrivKeys(const std::map<CKeyID, CKey>& privkey_map, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool ImportPubKeys(const std::vector<CKeyID>& ordered_pubkeys, const std::map<CKeyID, CPubKey>& pubkey_map, const std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>>& key_origins, const bool add_keypool, const bool internal, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool ImportScriptPubKeys(const std::string& label, const std::set<CScript>& script_pub_keys, const bool have_solving_data, const bool apply_label, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-
     CFeeRate m_pay_tx_fee{DEFAULT_PAY_TX_FEE};
     unsigned int m_confirm_target{DEFAULT_TX_CONFIRM_TARGET};
     /** Allow Coin Selection to pick unconfirmed UTXOs that were sent from our own wallet if it
@@ -896,7 +895,25 @@ public:
 
     //! Connect the signals from ScriptPubKeyMans to the signals in CWallet
     void ConnectScriptPubKeyManNotifiers();
+// Add these public methods
+void PauseStaking(int64_t nSeconds) {
+    LOCK(cs_staking);
+    fStakingPaused = true;
+    nStakingPausedUntil = GetTime() + nSeconds;
+    LogPrint(BCLog::POS, "Staking paused for %d seconds\n", nSeconds);
+}
 
+void ResumeStaking() {
+    LOCK(cs_staking);
+    fStakingPaused = false;
+    nStakingPausedUntil = 0;
+    LogPrint(BCLog::POS, "Staking resumed\n");
+}
+
+bool IsStakingPaused() const {
+    LOCK(cs_staking);
+    return fStakingPaused && GetTime() < nStakingPausedUntil;
+}
     //! Instantiate a descriptor ScriptPubKeyMan from the WalletDescriptor and load it
     void LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc);
 
@@ -960,7 +977,9 @@ public:
     mutable int m_greatest_txn_depth = 0;
     mutable std::atomic_bool m_have_spendable_balance_cached {false};
     mutable CAmount m_spendable_balance_cached = 0;
-
+mutable RecursiveMutex cs_staking;  // Changed from CCriticalSection to RecursiveMutex
+bool fStakingPaused GUARDED_BY(cs_staking);
+int64_t nStakingPausedUntil GUARDED_BY(cs_staking);
     enum stakingState {
         NOT_STAKING = 0,
         IS_STAKING = 1,
@@ -969,12 +988,13 @@ public:
         NOT_STAKING_LOCKED = -3,
         NOT_STAKING_LIMITED = -4,
         NOT_STAKING_DISABLED = -5,
+        NOT_STAKING_PAUSED = -6,
+
     };
 
     std::atomic<stakingState> m_is_staking {NOT_STAKING};
 
 };
-
 /**
  * Called periodically by the schedule thread. Prompts individual wallets to resend
  * their transactions. Actual rebroadcast schedule is managed by the wallets themselves.

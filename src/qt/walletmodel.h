@@ -162,6 +162,8 @@ public:
     // Otherwise, uses the wallet's cached available balance.
     CAmount getAvailableBalance(const wallet::CCoinControl* control);
 
+    CAmount getStakingRewards() const;
+
 private:
     std::unique_ptr<interfaces::Wallet> m_wallet;
     std::unique_ptr<interfaces::Handler> m_handler_unload;
@@ -232,7 +234,6 @@ Q_SIGNALS:
 public Q_SLOTS:
     /* Starts a timer to periodically update the balance */
     void startPollBalance();
-
     /* Wallet status might have changed */
     void updateStatus();
     /* New transaction, or transaction changed status */

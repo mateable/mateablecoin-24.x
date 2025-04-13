@@ -53,8 +53,8 @@ void SetCoinBaseMaturity(int in)
 {
     COINBASE_MATURITY_ = in;
 }
-
 namespace wallet {
+
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
         "You need to rescan the blockchain in order to correctly mark used "
