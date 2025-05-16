@@ -194,6 +194,13 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
 {
     if (params.fPowAllowMinDifficultyBlocks) return true;
 
+       // At block 150,000 we switched to a new diff retarget algorithm
+       // This invalidates BTC-style transition rules, so skip the check
+   if (height >= 150000) {
+    return true;
+   }
+
+    
     if (height % params.DifficultyAdjustmentInterval() == 0) {
         int64_t smallest_timespan = params.nPowTargetTimespan/4;
         int64_t largest_timespan = params.nPowTargetTimespan*4;
