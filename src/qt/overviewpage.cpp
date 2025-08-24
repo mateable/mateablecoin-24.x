@@ -7,7 +7,7 @@
 
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
-#include <qt/fetch.h>
+#include <wallet/fetch.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
@@ -145,7 +145,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     walletModel(nullptr),
     m_platform_style{platformStyle},
     txdelegate(new TxViewDelegate(platformStyle, this)),
-    priceUpdateTimer(new QTimer(this))  // Initialize the timer
+    priceUpdateTimer(new QTimer(this)),  // Initialize the timer
+    announcementUpdateTimer(new QTimer(this))  // Initialize the timer
+
 {
     ui->setupUi(this);
 
@@ -297,6 +299,13 @@ void OverviewPage::setWalletModel(WalletModel *model)
     // Start the timer with a 60-second interval
     priceUpdateTimer->start(60000);  // 60000 ms = 60 seconds
     setPriceData();
+  // Connect the timer's timeout signal to setAnnouncementData
+    connect(announcementUpdateTimer, &QTimer::timeout, this, &OverviewPage::setAnnouncementData);
+
+    // Start the timer with a 60-second interval
+    announcementUpdateTimer->start(60000);  // 60000 ms = 60 seconds
+    setAnnouncementData();
+
 }
 
 void OverviewPage::changeEvent(QEvent* e)
@@ -315,6 +324,19 @@ void OverviewPage::setPriceData()
     std::string newPriceData;
     return_random_exchange(newPriceData);
     this->ui->priceData->setText(QString::fromStdString(newPriceData));
+}
+
+void OverviewPage::setAnnouncementData()
+{
+    std::string annText;
+    if (parse_wallet_announcement(annText) && !annText.empty()) {
+        QString htmlText = QString("<img src=\":/icons/warning\" width=\"24\" height=\"24\" style=\"vertical-align:middle;\"> "
+                                   "<b>%1</b>").arg(QString::fromStdString(annText));
+        ui->AnnouncementData->setText(htmlText);
+        ui->AnnouncementData->setVisible(true);
+    } else {
+        ui->AnnouncementData->setVisible(false);
+    }
 }
 
 void OverviewPage::updateDisplayUnit()

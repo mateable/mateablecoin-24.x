@@ -32,8 +32,10 @@ class OverviewPage : public QWidget
 public:
     explicit OverviewPage(const PlatformStyle *platformStyle, QWidget *parent = nullptr);
     ~OverviewPage();
-QTimer *priceUpdateTimer;  // Declare the QTimer
+    QTimer *priceUpdateTimer;  // Declare the QTimer
+    QTimer *announcementUpdateTimer;  // Declare the QTimer
     void setPriceData();
+    void setAnnouncementData();
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);

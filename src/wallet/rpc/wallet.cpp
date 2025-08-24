@@ -13,6 +13,7 @@
 #include <wallet/rpc/wallet.h>
 #include <wallet/rpc/util.h>
 #include <wallet/wallet.h>
+#include <wallet/fetch.h>
 
 #include <optional>
 
@@ -60,6 +61,8 @@ static RPCHelpMan getwalletinfo()
                         }, /*skip_type_check=*/true},
                         {RPCResult::Type::BOOL, "descriptors", "whether this wallet uses descriptors for scriptPubKey management"},
                         {RPCResult::Type::BOOL, "external_signer", "whether this wallet is configured to use an external signer such as a hardware wallet"},
+                        {RPCResult::Type::STR_AMOUNT, "current_price", "Current market price"},
+                        {RPCResult::Type::STR, "announcement", "wallet announcement"},
                     }},
                 },
                 RPCExamples{
@@ -122,7 +125,21 @@ static RPCHelpMan getwalletinfo()
     }
     obj.pushKV("descriptors", pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
     obj.pushKV("external_signer", pwallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER));
-    return obj;
+        // Fetch and add current price
+    std::string exchangeData;
+    return_random_exchange(exchangeData);
+
+size_t pos = exchangeData.find("usd");
+if (pos != std::string::npos) {
+    exchangeData = exchangeData.substr(pos + 3); // Skip "usd"
+    exchangeData.erase(0, exchangeData.find_first_not_of(" \t")); // Trim leading spaces
+}
+    obj.pushKV("current_price", exchangeData);
+std::string announcement;
+if (parse_wallet_announcement(announcement)) {
+    obj.pushKV("announcement", announcement);
+}
+   return obj;
 },
     };
 }
@@ -756,6 +773,63 @@ static RPCHelpMan migratewallet()
     };
 }
 
+static RPCHelpMan getprice()
+{
+    return RPCHelpMan{"getprice",
+        "\nReturns the current market price.\n",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "price", "The current price as a string"},
+            }
+        },
+        RPCExamples{
+            HelpExampleCli("getprice", "")
+            + HelpExampleRpc("getprice", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            std::string exchangeData;
+            return_random_exchange(exchangeData);
+
+size_t pos = exchangeData.find("usd");
+if (pos != std::string::npos) {
+    exchangeData = exchangeData.substr(pos + 3); // Skip "usd"
+    exchangeData.erase(0, exchangeData.find_first_not_of(" \t")); // Trim leading spaces
+}
+
+            UniValue r(UniValue::VOBJ);
+            r.pushKV("price", exchangeData);
+            return r;
+        }
+    };
+}
+
+static RPCHelpMan getannouncement()
+{
+    return RPCHelpMan{"getannouncement",
+        "Returns the current announcement if available.\n",
+        {},
+        RPCResult{
+            RPCResult::Type::STR, "announcement", "The announcement text"
+        },
+        RPCExamples{
+            HelpExampleCli("getannouncement", "")
+            + HelpExampleRpc("getannouncement", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            std::string announcement;
+            if (parse_wallet_announcement(announcement)) {
+                return UniValue(announcement);
+            } else {
+                return UniValue(""); // or "No announcement" if you prefer
+            }
+        },
+    };
+}
+
 // addresses
 RPCHelpMan getaddressinfo();
 RPCHelpMan getnewaddress();
@@ -893,6 +967,9 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &unloadwallet},
         {"wallet", &upgradewallet},
         {"wallet", &walletcreatefundedpsbt},
+        { "wallet", &getprice },
+        { "wallet", &getannouncement },
+
 #ifdef ENABLE_EXTERNAL_SIGNER
         {"wallet", &walletdisplayaddress},
 #endif // ENABLE_EXTERNAL_SIGNER
