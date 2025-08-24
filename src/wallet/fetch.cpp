@@ -1,3 +1,8 @@
+// Copyright (c) 2024-2025 The Mateable Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include <wallet/fetch.h>
 #include <stdlib.h>
 #include <time.h>
 #include <boost/beast/core.hpp>
@@ -107,4 +112,64 @@ void return_random_exchange(std::string& exchangeData)
         }
     }
 }
+// Fetch wallet announcement
+bool fetch_wallet_announcement(std::string& outstr)
+{
+    try
+    {
+        const char* host = "50.116.31.124";
+        const char* port = "80";
 
+        boost::asio::io_context ioc;
+        boost::beast::net::ip::tcp::resolver resolver(ioc);
+        boost::beast::tcp_stream stream(ioc);
+
+        auto const results = resolver.resolve(host, port);
+        stream.connect(results);
+
+        boost::beast::http::request<boost::beast::http::string_body> req{boost::beast::http::verb::get, "/announcement", int(10)};
+        req.set(boost::beast::http::field::host, host);
+        req.set(boost::beast::http::field::user_agent, "mateable/1.0");
+
+        boost::beast::http::write(stream, req);
+        boost::beast::flat_buffer buffer;
+        boost::beast::http::response<boost::beast::http::dynamic_body> res;
+        boost::beast::http::read(stream, buffer, res);
+
+        std::stringstream ss;
+        ss << res;
+        outstr = ss.str();
+
+        boost::beast::error_code ec;
+        stream.socket().shutdown(boost::beast::net::ip::tcp::socket::shutdown_both, ec);
+    }
+    catch (std::exception const& e)
+    {
+        return false;
+    }
+    return true;
+}
+
+// Parse the wallet announcement
+bool parse_wallet_announcement(std::string& announcementText)
+{
+    std::string outstr;
+    if (!fetch_wallet_announcement(outstr)) {
+        return false;
+    }
+
+    bool parse_begin = false;
+    std::istringstream instr(outstr);
+    for (std::string line; std::getline(instr, line); )
+    {
+        if (line.find("start") != std::string::npos) {
+            parse_begin = true;
+            continue;
+        }
+        if (parse_begin && !line.empty()) {
+            announcementText = line;
+            return true;
+        }
+    }
+    return false;
+}
