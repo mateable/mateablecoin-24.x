@@ -123,8 +123,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1628640000; // August 11th, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 709632; // Approximately November 12th, 2021
 
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000002dfa96cf7b4300d");  //block 2500000
-        consensus.defaultAssumeValid = uint256S("0x7f5e46e925f98d74ff7b19902f334dcba22f23f8bc360686c27888726a1d1b95");  //block 2500000 
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000002dfa95b2102058d");  //yescrypt
+        consensus.defaultAssumeValid = uint256S("0x7f5e46e925f98d74ff7b19902f334dcba22f23f8bc360686c27888726a1d1b95");  //block 2500000
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
