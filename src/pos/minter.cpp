@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <pos/minter.h>
+#include <script/standard.h>
 
 #include <chainparams.h>
 #include <consensus/consensus.h>
@@ -16,6 +17,7 @@
 #include <util/moneystr.h>
 #include <util/syserror.h>
 #include <util/thread.h>
+#include <util/message.h>
 
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
@@ -30,6 +32,7 @@
 #include <wallet/spend.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
+#include <script/standard.h>
 
 #include <stdint.h>
 
@@ -88,6 +91,10 @@ bool CheckStake(ChainstateManager& chainman, const CBlock* pblock)
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
     if (!chainman.ProcessNewBlock(shared_pblock, true, /*min_pow_checked=*/true, nullptr)) {
         return error("%s: Block not accepted.", __func__);
+    }
+
+    if (!CheckStakeUnique(*pblock, true)) {
+        return error("%s: %s CheckStakeUnique failed after ProcessNewBlock.", __func__, pblock->GetHash().GetHex());
     }
 
     return true;
@@ -202,31 +209,27 @@ static inline void condWaitFor(size_t nThreadID, int ms)
     t->m_thread_interrupt.sleep_for(std::chrono::milliseconds(ms));
 }
 
-bool SignBlockWithKey(CBlock& block, const CKey& key)
+bool SignBlockWithKey(CBlock& block, wallet::CWallet* wallet, const CKey& key)
 {
-    std::vector<valtype> vSolutions;
-    const CTxOut& txout = block.vtx[1]->vout[1];
+    if (wallet->IsLegacy()) {
+        std::vector<valtype> vSolutions;
+        const CTxOut& txout = block.vtx[1]->vout[1];
+        TxoutType whichType = Solver(txout.scriptPubKey, vSolutions);
 
-    TxoutType whichType = Solver(txout.scriptPubKey, vSolutions);
-
-    CKeyID keyID;
-
-    if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH) {
-        keyID = CKeyID(uint160(vSolutions[0]));
-    } else if (whichType == TxoutType::PUBKEY) {
-        keyID = CPubKey(vSolutions[0]).GetID();
-    } else {
-        return false;
+        if (!key.Sign(block.GetHash(), block.vchBlockSig)) {
+            LogPrint(BCLog::POS, "%s: signing block with key type %s failed\n", __func__, GetTxnOutputType(whichType));
+            return false;
+        }
+        LogPrint(BCLog::POS, "%s: signing block with key type %s succeeded\n", __func__, GetTxnOutputType(whichType));
+        return true;
+    } else { // Descriptor wallet
+        if (!key.Sign(block.GetHash(), block.vchBlockSig)) {
+            LogPrint(BCLog::POS, "%s: signing block failed for descriptor wallet\n", __func__);
+            return false;
+        }
+        LogPrint(BCLog::POS, "%s: signing block succeeded for descriptor wallet\n", __func__);
+        return true;
     }
-
-    if (!key.Sign(block.GetHash(), block.vchBlockSig)) {
-        LogPrint(BCLog::POS, "%s: signing block with key type %s failed\n", __func__, GetTxnOutputType(whichType));
-        return false;
-    }
-
-    LogPrint(BCLog::POS, "%s: signing block with key type %s succeeded\n", __func__, GetTxnOutputType(whichType));
-
-    return true;
 }
 
 bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, int nHeight, int64_t nSearchTime, Chainstate& chain_state)
@@ -237,12 +240,12 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
         return error("%s: Malformed block.", __func__);
     }
 
-    CKey key;
     block.nBits = GetNextWorkRequiredPoS(pindexPrev, Params().GetConsensus());
     LogPrintf("%s: nBits %d\n", __func__, block.nBits);
 
     CAmount nFees = 0;
     CMutableTransaction txCoinStake;
+    CKey key;
     if (CreateCoinStake(wallet, pindexPrev, block.nBits, nSearchTime, nHeight, nFees, txCoinStake, key, chain_state)) {
         LogPrint(BCLog::POS, "%s: Kernel found.\n", __func__);
 
@@ -255,14 +258,14 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
             // Insert coinstake as vtx[1]
             block.vtx.insert(block.vtx.begin() + 1, MakeTransactionRef(txCoinStake));
 
-            bool mutated;
-            block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
+            //Needs this code so there is no error for Merkle
+            node::RegenerateCommitments(block, chain_state.m_chainman);
 
             uint256 blockhash = block.GetHash();
             LogPrint(BCLog::POS, "%s: signing blockhash %s\n", __func__, blockhash.ToString());
 
             // Append a signature to the block
-            return SignBlockWithKey(block, key);
+            return SignBlockWithKey(block, wallet, key);
         }
     }
 
@@ -270,6 +273,7 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
 
     return false;
 }
+
 
 void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWallet>>& vpwallets, size_t nStart, size_t nEnd, ChainstateManager* chainman, CConnman* connman)
 {
@@ -280,7 +284,7 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
 
     LogPrintf("Starting staking thread %d, %d wallet%s.\n", nThreadID, nEnd - nStart, (nEnd - nStart) > 1 ? "s" : "");
 
-    int nBestHeight; // TODO: set from new block signal?
+    int nBestHeight;
     int64_t nBestTime;
 
     if (!gArgs.GetBoolArg("-staking", true)) {
@@ -290,6 +294,8 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
 
     const bool stake_thread_ignore_peers = gArgs.GetBoolArg("-stakethreadignorepeers", false);
     const size_t stake_thread_cond_delay_ms = gArgs.GetIntArg("-stakethreadconddelayms", 60000);
+    const size_t min_stake_cooldown_ms = 30000; // Minimum 30 seconds after successful stake
+
     LogPrint(BCLog::POS, "Stake thread conditional delay set to %d.\n", stake_thread_cond_delay_ms);
     LogPrint(BCLog::POS, "Stake thread is %s peers.\n", stake_thread_ignore_peers ? "ignoring" : "not ignoring");
 
@@ -346,9 +352,12 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             continue;
         }
 
+        // Enforce minimum stake interval more strictly
         if (nMinStakeInterval > 0 && nTimeLastStake + (int64_t)nMinStakeInterval > GetTime()) {
-            LogPrint(BCLog::POS, "%s: Rate limited to 1 / %d seconds.\n", __func__, nMinStakeInterval);
-            condWaitFor(nThreadID, nMinStakeInterval * 500); // nMinStakeInterval / 2 seconds
+            int64_t remaining = (nTimeLastStake + nMinStakeInterval) - GetTime();
+            LogPrint(BCLog::POS, "%s: Rate limited to 1 / %d seconds. Waiting %d more seconds.\n",
+                     __func__, nMinStakeInterval, remaining);
+            condWaitFor(nThreadID, std::min(remaining * 1000, (int64_t)30000));
             continue;
         }
 
@@ -368,42 +377,40 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
         }
 
         std::unique_ptr<node::CBlockTemplate> pblocktemplate;
-
         size_t nWaitFor = stake_thread_cond_delay_ms;
-        CAmount reserve_balance;
+        bool staked_successfully = false;
 
-        for (size_t i = nStart; i < nEnd; ++i)
-        {
+        for (size_t i = nStart; i < nEnd; ++i) {
             auto pwallet = vpwallets[i];
             pwallet->AbandonOrphanedCoinstakes();
 
             if (!pwallet->fStakingEnabled) {
                 pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_DISABLED;
-                continue;
+                continue;  // FIXED: changed break to continue
             }
 
             {
                 LOCK(pwallet->cs_wallet);
                 if (nSearchTime <= pwallet->nLastCoinStakeSearchTime) {
                     nWaitFor = std::min(nWaitFor, (size_t)nMinerSleep);
-                    continue;
+                    continue;  // FIXED: changed break to continue
                 }
 
                 if (pwallet->nStakeLimitHeight && nBestHeight >= pwallet->nStakeLimitHeight) {
                     pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_LIMITED;
                     nWaitFor = std::min(nWaitFor, (size_t)30000);
-                    continue;
+                    continue;  // FIXED: changed break to continue
                 }
 
                 if (pwallet->IsLocked()) {
                     pwallet->m_is_staking = wallet::CWallet::NOT_STAKING_LOCKED;
                     nWaitFor = std::min(nWaitFor, (size_t)30000);
-                    continue;
+                    continue;  // FIXED: changed break to continue
                 }
-                reserve_balance = pwallet->nReserveBalance;
             }
 
             CAmount balance = GetSpendableBalance(*pwallet);
+            CAmount reserve_balance = pwallet->nReserveBalance;
 
             if (balance <= reserve_balance) {
                 LOCK(pwallet->cs_wallet);
@@ -411,7 +418,7 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
                 nWaitFor = std::min(nWaitFor, (size_t)60000);
                 pwallet->nLastCoinStakeSearchTime = nSearchTime + stake_thread_cond_delay_ms / 1000;
                 LogPrint(BCLog::POS, "%s: %s, low balance.\n", __func__, pwallet->GetName());
-                continue;
+                continue;  // FIXED: changed break to continue
             }
 
             if (!pblocktemplate.get()) {
@@ -426,15 +433,19 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             }
 
             pwallet->m_is_staking = wallet::CWallet::IS_STAKING;
-
-            nWaitFor = nMinerSleep;
             fIsStaking = true;
             CBlock* pblock = &pblocktemplate->block;
 
             if (SignBlock(*pblock, chainman->ActiveChain().Tip(), pwallet.get(), nBestHeight + 1, nSearchTime, chainman->ActiveChainstate())) {
                 if (CheckStake(*chainman, pblock)) {
                     nTimeLastStake = GetTime();
-                    break;
+                    staked_successfully = true;
+                    LogPrint(BCLog::POS, "%s: Successfully staked block %s\n", __func__, pblock->GetHash().ToString());
+
+                    // Update wallet search time to prevent immediate retry
+                    LOCK(pwallet->cs_wallet);
+                    pwallet->nLastCoinStakeSearchTime = nSearchTime + (min_stake_cooldown_ms / 1000);
+                    break;  // FIXED: Exit wallet loop after successful stake
                 }
             } else {
                 int nRequiredDepth = std::min((int)COINBASE_MATURITY, (int)(nBestHeight / 2));
@@ -448,6 +459,12 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
                     continue;
                 }
             }
+        }
+
+        // Enforce minimum cooldown after successful stake
+        if (staked_successfully) {
+            nWaitFor = std::max(nWaitFor, min_stake_cooldown_ms);
+            LogPrint(BCLog::POS, "%s: Enforcing %d ms cooldown after successful stake\n", __func__, nWaitFor);
         }
 
         condWaitFor(nThreadID, nWaitFor);
@@ -532,30 +549,18 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
     arith_uint256 bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
     CAmount nBalance = GetSpendableBalance(*wallet);
-    if (nBalance <= wallet->nReserveBalance) {
-        return false;
-    }
+    if (nBalance <= wallet->nReserveBalance) return false;
 
-    // Ensure txn is empty
     txNew.vin.clear();
     txNew.vout.clear();
+    txNew.vout.push_back(CTxOut(0, CScript())); // empty output to mark coinstake
 
-    // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    txNew.vout.push_back(CTxOut(0, scriptEmpty));
-
-    // Choose coins to use
+    // Select coins for staking
     CAmount nValueIn = 0;
     std::vector<const wallet::CWalletTx*> vwtxPrev;
     std::set<std::pair<const wallet::CWalletTx*, unsigned int>> setCoins;
-    if (!SelectCoinsForStaking(wallet, nBalance - wallet->nReserveBalance, setCoins, nValueIn)) {
-        UninterruptibleSleep(std::chrono::milliseconds { 150 });
-        return false;
-    }
-
-    if (setCoins.empty()) {
-        UninterruptibleSleep(std::chrono::milliseconds { 150 });
+    if (!SelectCoinsForStaking(wallet, nBalance - wallet->nReserveBalance, setCoins, nValueIn) || setCoins.empty()) {
+        UninterruptibleSleep(std::chrono::milliseconds{150});
         return false;
     }
 
@@ -565,197 +570,226 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
 
     for (; it != setCoins.end(); ++it) {
         auto pcoin = *it;
-        if (ThreadStakeMinerStopped()) {
-            return false;
-        }
+        if (ThreadStakeMinerStopped()) return false;
 
         int64_t nBlockTime;
-        COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-        if (CheckKernel(chain_state, pindexPrev, nBits, nTime, prevoutStake, &nBlockTime)) {
-            LOCK(wallet->cs_wallet);
+        COutPoint prevoutStake(pcoin.first->GetHash(), pcoin.second);
 
-            // Found a kernel
-            LogPrint(BCLog::POS, "%s: Kernel found.\n", __func__);
+        if (!CheckKernel(chain_state, pindexPrev, nBits, nTime, prevoutStake, &nBlockTime)) continue;
 
-            CTxOut kernelOut = pcoin.first->tx->vout[pcoin.second];
+        LOCK(wallet->cs_wallet);
+        CTxOut kernelOut = pcoin.first->tx->vout[pcoin.second];
+        scriptPubKeyKernel = kernelOut.scriptPubKey;
 
-            CScript scriptPubKeyOut;
-            std::vector<valtype> vSolutions;
-            CScript scriptPubKeyKernel = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
-            TxoutType whichType = Solver(scriptPubKeyKernel, vSolutions);
+        CScript scriptPubKeyOut;
+        std::vector<valtype> vSolutions;
+        TxoutType whichType = Solver(scriptPubKeyKernel, vSolutions);
 
-            LogPrint(BCLog::POS, "%s: parsed kernel type=%s\n", __func__, GetTxnOutputType(whichType));
-
-            if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH)
-            {
-                uint160 hash160(vSolutions[0]);
-                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
-                if (!spk_man) {
-                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
-                    return false;
-                }
-                if (!spk_man->GetKey(CKeyID(hash160), key)) {
-                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
-                    return false;
-                }
-                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
+        // Helper lambda: obtain private key for a destination via provider
+        auto GetKeyFromProviderForDest = [&](const CTxDestination& dest) -> bool {
+            // Resolve a CKeyID (for PKHash / WPKH) or fail
+            if (const PKHash* pkhash = std::get_if<PKHash>(&dest)) {
+                // Convert PKHash -> CKeyID
+                CKeyID keyid = ToKeyID(*pkhash);
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                if (!provider) return false;
+                return provider->GetKey(keyid, key);
+            } else if (const WitnessV0KeyHash* wpkh = std::get_if<WitnessV0KeyHash>(&dest)) {
+                // convert WitnessV0KeyHash -> PKHash -> CKeyID
+                PKHash pkh(static_cast<uint160>(*wpkh));
+                CKeyID keyid = ToKeyID(pkh);
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                if (!provider) return false;
+                return provider->GetKey(keyid, key);
             }
-            else if (whichType == TxoutType::SCRIPTHASH)
-            {
-                uint160 hash160(vSolutions[0]);
+            return false;
+        };
+
+        if (whichType == TxoutType::PUBKEYHASH || whichType == TxoutType::WITNESS_V0_KEYHASH) {
+            // For legacy: get key from legacy spk_man; for descriptor: use GetSolvingProvider
+            uint160 hash160(vSolutions[0]);
+
+            if (wallet->IsLegacy()) {
                 auto spk_man = wallet->GetLegacyScriptPubKeyMan();
-                if (!spk_man) {
-                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
+                if (!spk_man || !spk_man->GetKey(CKeyID(hash160), key)) return false;
+
+                if (whichType == TxoutType::WITNESS_V0_KEYHASH) {
+                    scriptPubKeyOut = GetScriptForDestination(WitnessV0KeyHash(hash160));
+                } else {
+                    scriptPubKeyOut = GetScriptForDestination(PKHash(hash160));
+                }
+            } else { // Descriptor wallet
+                if (whichType == TxoutType::WITNESS_V0_KEYHASH) {
+                    scriptPubKeyOut = GetScriptForDestination(WitnessV0KeyHash(hash160));
+                } else {
+                    scriptPubKeyOut = GetScriptForDestination(PKHash(hash160));
+                }
+
+                // Use ExtractDestination to build a destination and ask provider for key
+                CTxDestination dest;
+                if (!ExtractDestination(scriptPubKeyKernel, dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to extract destination from kernel script %s\n", HexStr(scriptPubKeyKernel));
                     return false;
                 }
-                CKeyID keyID;
-                CScript script;
+                if (!GetKeyFromProviderForDest(dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to obtain key from provider for descriptor wallet output %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+            }
+        } else if (whichType == TxoutType::SCRIPTHASH || whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
+            uint160 hash160(vSolutions[0]);
+
+            if (wallet->IsLegacy()) {
+                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
+                if (!spk_man) return false;
+
+                CScript inner_script;
                 CTxDestination inner_dest;
                 CScriptID scriptID(hash160);
-                if (spk_man->GetCScript(scriptID, script) && ExtractDestination(script, inner_dest)) {
-                    keyID = GetKeyForDestination(*spk_man, inner_dest);
-                    if (!spk_man->GetKey(keyID, key)) {
-                        LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
-                        return false;
-                    }
+                if (spk_man->GetCScript(scriptID, inner_script) && ExtractDestination(inner_script, inner_dest)) {
+                    CKeyID keyID = GetKeyForDestination(*spk_man, inner_dest);
+                    if (!spk_man->GetKey(keyID, key)) return false;
                 } else {
-                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
                     return false;
                 }
-                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
+
+                if (whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
+                    scriptPubKeyOut = GetScriptForDestination(WitnessV0ScriptHash(inner_script));
+                } else {
+                    scriptPubKeyOut = GetScriptForDestination(ScriptHash(CScriptID(hash160)));
+                }
+            } else { // Descriptor wallet
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                if (!provider) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to get signing provider for output %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+
+                CScript inner_script;
+                CScriptID scriptID(hash160);
+                if (!provider->GetCScript(scriptID, inner_script)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : provider failed to get inner script for %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+
+                CTxDestination inner_dest;
+                if (!ExtractDestination(inner_script, inner_dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to extract inner destination from inner_script %s\n", HexStr(inner_script));
+                    return false;
+                }
+
+                // Ask provider to give the key for the inner destination
+                if (!GetKeyFromProviderForDest(inner_dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : provider failed to get key for inner destination of %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+
+                if (whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
+                    scriptPubKeyOut = GetScriptForDestination(WitnessV0ScriptHash(inner_script));
+                } else {
+                    scriptPubKeyOut = GetScriptForDestination(ScriptHash(CScriptID(hash160)));
+                }
             }
-            else if (whichType == TxoutType::PUBKEY)
-            {
-                valtype& vchPubKey = vSolutions[0];
-                CPubKey pubKey(vchPubKey);
-                uint160 hash160(Hash160(vchPubKey));
+        } else if (whichType == TxoutType::PUBKEY) {
+            CPubKey pubKey(vSolutions[0]);
+            if (wallet->IsLegacy()) {
+                uint160 hash160(Hash160(vSolutions[0]));
                 auto spk_man = wallet->GetLegacyScriptPubKeyMan();
-                if (!spk_man) {
-                    LogPrint(BCLog::POS, "%s: failed to get legacyscriptpubkeyman\n", __func__);
+                if (!spk_man || !spk_man->GetKey(CKeyID(hash160), key)) return false;
+            } else { // Descriptor wallet
+                // For P2PK kernels, try to pull the private key using provider for the pubkey's CKeyID
+                CKeyID keyID = pubKey.GetID();
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                if (!provider || !provider->GetKey(keyID, key)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to get key from provider for descriptor wallet P2PK kernel %s\n", HexStr(scriptPubKeyKernel));
                     return false;
                 }
-                if (!spk_man->GetKey(CKeyID(hash160), key)) {
-                    LogPrint(BCLog::POS, "%s: failed to get key for kernel type=%d\n", __func__, GetTxnOutputType(whichType));
-                    return false;
-                }
-                scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
             }
-            else
-            {
-                LogPrint(BCLog::POS, "%s: no support for kernel type=%s\n", __func__, GetTxnOutputType(whichType));
-                continue;
-            }
-
-            txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-            vwtxPrev.push_back(pcoin.first);
-            CTxOut out(0, scriptPubKeyOut);
-            txNew.vout.push_back(out);
-
-            LogPrint(BCLog::POS, "%s: Added kernel.\n", __func__);
-
-            setCoins.erase(it);
-            break;
+            scriptPubKeyOut = scriptPubKeyKernel;
+        } else {
+            LogPrint(BCLog::POS, "%s: unsupported kernel type=%s\n", __func__, GetTxnOutputType(whichType));
+            continue;
         }
+
+        // Add kernel input + coinstake output
+        txNew.vin.push_back(CTxIn(prevoutStake));
+        nCredit += kernelOut.nValue;
+        vwtxPrev.push_back(pcoin.first);
+        txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
+
+        setCoins.erase(it);
+        break;
     }
 
-    if (nCredit == 0 || nCredit > nBalance - wallet->nReserveBalance) {
-        return false;
-    }
+    if (nCredit == 0 || nCredit > nBalance - wallet->nReserveBalance) return false;
 
-    // Attempt to add more inputs
-    // Only advantage here is to setup the next stake using this output as a kernel to have a higher chance of staking
+    // Combine additional inputs if needed
     size_t nStakesCombined = 0;
     it = setCoins.begin();
-    while (it != setCoins.end()) {
-        if (nStakesCombined >= wallet->nMaxStakeCombine) {
-            break;
-        }
-
-        // Stop adding more inputs if already too many inputs
-        if (txNew.vin.size() >= 100) {
-            break;
-        }
-
-        // Stop adding more inputs if value is already pretty significant
-        if (nCredit >= wallet->nStakeCombineThreshold) {
-            break;
-        }
-
-        std::set<std::pair<const wallet::CWalletTx*, unsigned int>>::iterator itc = it++; // copy the current iterator then increment it
+    while (it != setCoins.end() && nStakesCombined < wallet->nMaxStakeCombine && txNew.vin.size() < 100 && nCredit < wallet->nStakeCombineThreshold) {
+        std::set<std::pair<const wallet::CWalletTx*, unsigned int>>::iterator itc = it++;
         auto pcoin = *itc;
         CTxOut prevOut = pcoin.first->tx->vout[pcoin.second];
 
-        // Only add coins of the same key/address as kernel
-        if (prevOut.scriptPubKey != scriptPubKeyKernel) {
-            continue;
-        }
-
-        // Stop adding inputs if reached reserve limit
-        if (nCredit + prevOut.nValue > nBalance - wallet->nReserveBalance) {
-            break;
-        }
-
-        // Do not add additional significant input
-        if (prevOut.nValue >= wallet->nStakeCombineThreshold) {
-            continue;
-        }
+        if (prevOut.scriptPubKey != scriptPubKeyKernel) continue;
+        if (nCredit + prevOut.nValue > nBalance - wallet->nReserveBalance) continue;
+        if (prevOut.nValue >= wallet->nStakeCombineThreshold) continue;
 
         txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-        nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
+        nCredit += prevOut.nValue;
         vwtxPrev.push_back(pcoin.first);
-
-        LogPrint(BCLog::POS, "%s: Combining kernel %s, %d.\n", __func__, pcoin.first->GetHash().ToString(), pcoin.second);
         nStakesCombined++;
         setCoins.erase(itc);
     }
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
-
-    // Get block reward
     CAmount nReward = GetBlockSubsidy(pindexPrev->nHeight + 1, consensusParams);
-    if (nReward < 0) {
-        return false;
-    }
+    if (nReward < 0) return false;
 
     nCredit += nReward;
-    {
-        if (nCredit >= wallet->nStakeSplitThreshold) {
-            txNew.vout.push_back(CTxOut(0, txNew.vout[1].scriptPubKey));
-        }
+    if (nCredit >= wallet->nStakeSplitThreshold) txNew.vout.push_back(CTxOut(0, txNew.vout[1].scriptPubKey));
 
-        // Set output amount
-        if (txNew.vout.size() == 3) {
-            txNew.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
-            txNew.vout[2].nValue = nCredit - txNew.vout[1].nValue;
-        } else {
-            txNew.vout[1].nValue = nCredit;
+    if (txNew.vout.size() == 3) {
+        txNew.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
+        txNew.vout[2].nValue = nCredit - txNew.vout[1].nValue;
+    } else {
+        txNew.vout[1].nValue = nCredit;
+    }
+
+    // Sign inputs
+    if (wallet->IsLegacy()) {
+        int nIn = 0;
+        for (const auto& pcoin : vwtxPrev) {
+            uint32_t nPrev = txNew.vin[nIn].prevout.n;
+            CTxOut prevOut = pcoin->tx->vout[nPrev];
+            SignatureData sigdata;
+            if (!ProduceSignature(*wallet->GetLegacyScriptPubKeyMan(), MutableTransactionSignatureCreator(txNew, nIn, prevOut.nValue, SIGHASH_ALL), prevOut.scriptPubKey, sigdata)) {
+                return error("%s: ProduceSignature failed.", __func__);
+            }
+            UpdateInput(txNew.vin[nIn], sigdata);
+            nIn++;
+        }
+    } else { // Descriptor wallet
+        // Fetch previous transactions (inputs):
+        std::map<COutPoint, Coin> coins_map;
+        for (const CTxIn& txin : txNew.vin) {
+            Coin coin;
+            if (chain_state.CoinsTip().GetCoin(txin.prevout, coin)) {
+                coins_map[txin.prevout] = coin;
+            } else {
+                return error("%s: Coin not found for %s", __func__, txin.prevout.ToString());
+            }
+        }
+        // Script verification errors
+        std::map<int, bilingual_str> input_errors;
+        if (!wallet->SignTransaction(txNew, coins_map, SIGHASH_ALL, input_errors)) {
+            return error("%s: SignTransaction failed.", __func__);
         }
     }
 
-    // Sign
-    int nIn = 0;
-    for (const auto& pcoin : vwtxPrev) {
-        uint32_t nPrev = txNew.vin[nIn].prevout.n;
-        CTxOut prevOut = pcoin->tx->vout[nPrev];
-        CAmount amount = prevOut.nValue;
-        CScript& scriptPubKeyOut = prevOut.scriptPubKey;
-
-        SignatureData sigdata;
-        if (!ProduceSignature(*wallet->GetLegacyScriptPubKeyMan(), MutableTransactionSignatureCreator(txNew, nIn, amount, SIGHASH_ALL), scriptPubKeyOut, sigdata)) {
-            return error("%s: ProduceSignature failed.", __func__);
-        }
-
-        UpdateInput(txNew.vin[nIn], sigdata);
-        nIn++;
-    }
-
-    // Limit size
-    unsigned int nBytes = ::GetSerializeSize(txNew, PROTOCOL_VERSION);
-    if (nBytes >= MAX_BLOCK_SERIALIZED_SIZE / 5) {
+    if (::GetSerializeSize(txNew, PROTOCOL_VERSION) >= MAX_BLOCK_SERIALIZED_SIZE / 5) {
         return error("%s: Exceeded coinstake size limit.", __func__);
     }
 
-    // Successfully generated coinstake
     return true;
 }

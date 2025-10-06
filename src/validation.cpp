@@ -3393,22 +3393,86 @@ bool CheckBlockSignature(const CBlock& block)
     const CTxOut& txout = block.vtx[1]->vout[1];
 
     TxoutType whichType = Solver(txout.scriptPubKey, vSolutions);
-    valtype& vchPubKey = vSolutions[0];
-    if (whichType == TxoutType::PUBKEY)
-    {
+
+    if (whichType == TxoutType::PUBKEY) {
+        valtype& vchPubKey = vSolutions[0];
         CPubKey key(vchPubKey);
         if (block.vchBlockSig.empty()) return false;
         return key.Verify(block.GetHash(), block.vchBlockSig);
-    }
-    else if (whichType == TxoutType::PUBKEYHASH)
-    {
-        CKeyID keyID;
-        keyID = CKeyID(uint160(vchPubKey));
-        CPubKey pubkey(vchPubKey);
+    } else if (whichType == TxoutType::PUBKEYHASH) {
+        // Note: This case is likely not hit for coinstakes, but kept for completeness.
+        // The public key is not in the scriptPubKey, it's in the scriptSig of the coinstake.
+        const CScript& scriptSig = block.vtx[1]->vin[0].scriptSig;
+        CScript::const_iterator pc = scriptSig.begin();
+        opcodetype opcode;
+        valtype vchSig;
+        valtype vchPubKey;
+        scriptSig.GetOp(pc, opcode, vchSig);
+        scriptSig.GetOp(pc, opcode, vchPubKey);
 
+        CPubKey pubkey(vchPubKey);
         if (!pubkey.IsValid()) return false;
         if (block.vchBlockSig.empty()) return false;
         return pubkey.Verify(block.GetHash(), block.vchBlockSig);
+    } else if (whichType == TxoutType::WITNESS_V0_KEYHASH) {
+        // For P2WPKH, the public key is in the witness
+        const CScriptWitness& witness = block.vtx[1]->vin[0].scriptWitness;
+        if (witness.stack.size() != 2) return false;
+        const valtype& vchPubKey = witness.stack[1];
+        CPubKey pubkey(vchPubKey);
+        if (!pubkey.IsValid()) return false;
+        if (block.vchBlockSig.empty()) return false;
+        return pubkey.Verify(block.GetHash(), block.vchBlockSig);
+    } else if (whichType == TxoutType::SCRIPTHASH || whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
+        CScript inner_script;
+        CTxDestination inner_dest;
+
+        if (whichType == TxoutType::SCRIPTHASH) {
+            // For P2SH, the redeemScript is the last push data in the scriptSig
+            const CScript& scriptSig = block.vtx[1]->vin[0].scriptSig;
+            CScript::const_iterator pc = scriptSig.begin();
+            std::vector<valtype> stack;
+            while (pc < scriptSig.end()) {
+                opcodetype opcode; // Declare opcode
+                valtype vch;
+                if (!scriptSig.GetOp(pc, opcode, vch)) break; // Pass opcode
+                stack.push_back(vch);
+            }
+            if (stack.empty()) return false;
+            inner_script = CScript(stack.back().begin(), stack.back().end());
+        } else { // WITNESS_V0_SCRIPTHASH
+            // For P2WSH, the witnessScript is the last element in the scriptWitness stack
+            const CScriptWitness& witness = block.vtx[1]->vin[0].scriptWitness;
+            if (witness.stack.empty()) return false;
+            inner_script = CScript(witness.stack.back().begin(), witness.stack.back().end());
+        }
+
+        if (!ExtractDestination(inner_script, inner_dest)) return false;
+
+        if (std::holds_alternative<PKHash>(inner_dest)) {
+            // If inner script is P2PKH, public key is in scriptSig
+            const CScript& scriptSig = block.vtx[1]->vin[0].scriptSig;
+            CScript::const_iterator pc = scriptSig.begin();
+            opcodetype opcode;
+            valtype vchSig;
+            valtype vchPubKey;
+            scriptSig.GetOp(pc, opcode, vchSig);
+            scriptSig.GetOp(pc, opcode, vchPubKey);
+
+            CPubKey pubkey(vchPubKey);
+            if (!pubkey.IsValid()) return false;
+            if (block.vchBlockSig.empty()) return false;
+            return pubkey.Verify(block.GetHash(), block.vchBlockSig);
+        } else if (std::holds_alternative<WitnessV0KeyHash>(inner_dest)) {
+            // If inner script is P2WPKH, public key is in witness
+            const CScriptWitness& witness = block.vtx[1]->vin[0].scriptWitness;
+            if (witness.stack.size() != 2) return false;
+            const valtype& vchPubKey = witness.stack[1];
+            CPubKey pubkey(vchPubKey);
+            if (!pubkey.IsValid()) return false;
+            if (block.vchBlockSig.empty()) return false;
+            return pubkey.Verify(block.GetHash(), block.vchBlockSig);
+        }
     }
 
     return false;
@@ -3685,7 +3749,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
             }
             CHash256().Write(hashWitness).Write(block.vtx[0]->vin[0].scriptWitness.stack[0]).Finalize(hashWitness);
             if (memcmp(hashWitness.begin(), &block.vtx[0]->vout[commitpos].scriptPubKey[6], 32)) {
-                //return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
+                return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
             }
             fHaveWitness = true;
         }

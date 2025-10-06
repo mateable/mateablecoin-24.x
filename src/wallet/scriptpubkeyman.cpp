@@ -2422,6 +2422,11 @@ std::unique_ptr<SigningProvider> DescriptorScriptPubKeyMan::GetSolvingProvider(c
     return GetSigningProvider(script, false);
 }
 
+std::unique_ptr<SigningProvider> DescriptorScriptPubKeyMan::GetSolvingProvider(const CScript& script, bool include_private) const
+{
+    return GetSigningProvider(script, include_private);
+}
+
 bool DescriptorScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sigdata)
 {
     return IsMine(script);
@@ -2457,6 +2462,61 @@ SigningResult DescriptorScriptPubKeyMan::SignMessage(const std::string& message,
         return SigningResult::SIGNING_FAILED;
     }
     return SigningResult::OK;
+}
+
+SigningResult DescriptorScriptPubKeyMan::SignBlockHash(const uint256 &hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    CScript script = GetScriptForDestination(pkhash);
+    auto provider = GetSolvingProvider(script, true);
+    if (!provider) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+    CKey key;
+    if (!provider->GetKey(ToKeyID(pkhash), key)) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
+    if (m_storage.IsLocked()) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
+    if (!key.Sign(hash, vchSig)) {
+        return SigningResult::SIGNING_FAILED;
+    }
+    return SigningResult::OK;
+}
+
+
+
+SigningResult DescriptorScriptPubKeyMan::SignBlockHash(const uint256 &hash, const WitnessV0KeyHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    // For native segwit, convert to PKHash and use the same signing logic
+    return SignBlockHash(hash, PKHash(static_cast<uint160>(pkhash)), vchSig);
+}
+
+SigningResult DescriptorScriptPubKeyMan::SignBlockHash(const uint256 &hash, const ScriptHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    // For P2SH, we need to get the inner script and sign with the inner key
+    CScriptID script_id(pkhash);
+    CScript inner_script;
+    std::unique_ptr<FlatSigningProvider> provider = GetSigningProvider(GetScriptForDestination(pkhash), true);
+    if (!provider || !provider->GetCScript(script_id, inner_script)) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
+    CTxDestination inner_dest;
+    if (!ExtractDestination(inner_script, inner_dest)) {
+        return SigningResult::SIGNING_FAILED;
+    }
+
+    // Sign with the inner destination
+    if (std::holds_alternative<PKHash>(inner_dest)) {
+        return SignBlockHash(hash, std::get<PKHash>(inner_dest), vchSig);
+    } else if (std::holds_alternative<WitnessV0KeyHash>(inner_dest)) {
+        return SignBlockHash(hash, std::get<WitnessV0KeyHash>(inner_dest), vchSig);
+    }
+
+    return SigningResult::SIGNING_FAILED;
 }
 
 TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
@@ -2731,4 +2791,45 @@ bool DescriptorScriptPubKeyMan::CanUpdateToWalletDescriptor(const WalletDescript
 
     return true;
 }
+
+SigningResult LegacyScriptPubKeyMan::SignBlockHash(const uint256 &hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    CKey key;
+    if (!GetKey(ToKeyID(pkhash), key)) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
+    if (!key.Sign(hash, vchSig)) {
+        return SigningResult::SIGNING_FAILED;
+    }
+    return SigningResult::OK;
+}
+
+SigningResult LegacyScriptPubKeyMan::SignBlockHash(const uint256 &hash, const WitnessV0KeyHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    return SignBlockHash(hash, PKHash(static_cast<uint160>(pkhash)), vchSig);
+}
+
+SigningResult LegacyScriptPubKeyMan::SignBlockHash(const uint256 &hash, const ScriptHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    CScriptID script_id(pkhash);
+    CScript inner_script;
+    if (!GetCScript(script_id, inner_script)) {
+        return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+    }
+
+    CTxDestination inner_dest;
+    if (!ExtractDestination(inner_script, inner_dest)) {
+        return SigningResult::SIGNING_FAILED;
+    }
+
+    if (std::holds_alternative<PKHash>(inner_dest)) {
+        return SignBlockHash(hash, std::get<PKHash>(inner_dest), vchSig);
+    } else if (std::holds_alternative<WitnessV0KeyHash>(inner_dest)) {
+        return SignBlockHash(hash, std::get<WitnessV0KeyHash>(inner_dest), vchSig);
+    }
+
+    return SigningResult::SIGNING_FAILED;
+}
+
 } // namespace wallet
