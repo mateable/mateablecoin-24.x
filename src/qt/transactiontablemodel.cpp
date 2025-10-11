@@ -225,7 +225,7 @@ public:
             interfaces::WalletTxStatus wtx;
             int numBlocks;
             int64_t block_time;
-            if (!cur_block_hash.IsNull() && rec->statusUpdateNeeded(cur_block_hash) && wallet.tryGetTxStatus(rec->hash, wtx, numBlocks, block_time)) {
+            if (!cur_block_hash.IsNull() && rec->status.statusUpdateNeeded(cur_block_hash) && wallet.tryGetTxStatus(rec->hash, wtx, numBlocks, block_time)) {
                 rec->updateStatus(wtx, cur_block_hash, numBlocks, block_time);
             }
             return rec;
@@ -324,7 +324,7 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord *wtx) cons
         status = tr("Abandoned");
         break;
     case TransactionStatus::Confirming:
-        status = tr("Confirming (%1 of %2 recommended confirmations)").arg(wtx->status.depth).arg(TransactionRecord::RecommendedNumConfirmations);
+        status = tr("Confirming (%1 of %2 recommended confirmations)").arg(wtx->status.depth).arg(wtx->status.required_confirmations);
         break;
     case TransactionStatus::Confirmed:
         status = tr("Confirmed (%1 confirmations)").arg(wtx->status.depth);
@@ -491,6 +491,8 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx)
         };
     case TransactionStatus::Confirmed:
         return QIcon(":/icons/transaction_confirmed");
+    case TransactionStatus::ConfirmedImmature:
+        return QIcon(":/icons/transaction_0");
     case TransactionStatus::Conflicted:
         return QIcon(":/icons/transaction_conflicted");
     case TransactionStatus::Immature: {
@@ -543,7 +545,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         case ToAddress:
             return txAddressDecoration(rec);
         case Amount: return {};
-        } // no default case, so the compiler can warn about missing cases
+        }
         assert(false);
     case Qt::DecorationRole:
     {
@@ -562,13 +564,13 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
             return formatTxToAddress(rec, false);
         case Amount:
             return formatTxAmount(rec, true, BitcoinUnits::SeparatorStyle::ALWAYS);
-        } // no default case, so the compiler can warn about missing cases
+        }
         assert(false);
     case Qt::EditRole:
         // Edit role is used for sorting, so return the unformatted values
         switch (column) {
         case Status:
-            return QString::fromStdString(rec->status.sortKey);
+            return QString("%1-%2").arg(rec->time).arg(rec->idx);
         case Date:
             return rec->time;
         case Type:
@@ -579,7 +581,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
             return formatTxToAddress(rec, true);
         case Amount:
             return qint64(rec->credit + rec->debit);
-        } // no default case, so the compiler can warn about missing cases
+        }
         assert(false);
     case Qt::ToolTipRole:
         return formatTooltip(rec);

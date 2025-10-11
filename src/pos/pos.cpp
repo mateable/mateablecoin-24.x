@@ -314,7 +314,13 @@ bool CheckStakeUnique(const CBlock& block, bool fUpdate)
     LOCK(cs_main);
 
     uint256 blockHash = block.GetHash();
-    const COutPoint& kernel = block.vtx[0]->vin[0].prevout;
+    if (!block.IsProofOfStake()) {
+        return true;
+    }
+    if (block.vtx.size() < 2) {
+        return error("%s: proof-of-stake block has no coinstake", __func__);
+    }
+    const COutPoint& kernel = block.vtx[1]->vin[0].prevout;
 
     std::map<COutPoint, uint256>::const_iterator mi = mapStakeSeen.find(kernel);
     if (mi != mapStakeSeen.end()) {

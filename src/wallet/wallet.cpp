@@ -288,11 +288,7 @@ std::shared_ptr<CWallet> CreateWallet(WalletContext& context, const std::string&
     uint64_t wallet_creation_flags = options.create_flags;
     const SecureString& passphrase = options.create_passphrase;
 
-    if (wallet_creation_flags & WALLET_FLAG_DESCRIPTORS) {
-        error = Untranslated("Descriptor wallets not supported.") + Untranslated(" ") + error;
-        status = DatabaseStatus::FAILED_CREATE;
-        return nullptr;
-    }
+    if (wallet_creation_flags & WALLET_FLAG_DESCRIPTORS) options.require_format = DatabaseFormat::SQLITE;
 
     // Indicate that the wallet is actually supposed to be blank and not just blank to make it encrypted
     bool create_blank = (wallet_creation_flags & WALLET_FLAG_BLANK_WALLET);
@@ -2180,6 +2176,41 @@ SigningResult CWallet::SignMessage(const std::string& message, const PKHash& pkh
     return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
 }
 
+SigningResult CWallet::SignBlockHash(const uint256 &hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    LOCK(cs_wallet);
+   for (const auto& spk_man_pair : m_spk_managers) {
+        SigningResult res = spk_man_pair.second->SignBlockHash(hash, pkhash, vchSig);
+        if (res == SigningResult::OK) {
+            return res;
+        }
+    }
+    return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+}
+
+SigningResult CWallet::SignBlockHash(const uint256 &hash, const WitnessV0KeyHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    LOCK(cs_wallet);
+    for (const auto& spk_man_pair : m_spk_managers) {
+        SigningResult res = spk_man_pair.second->SignBlockHash(hash, pkhash, vchSig);
+        if (res == SigningResult::OK) {
+            return res;
+        }
+    }
+    return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+}
+
+SigningResult CWallet::SignBlockHash(const uint256 &hash, const ScriptHash& pkhash, std::vector<unsigned char>& vchSig) const
+{
+    LOCK(cs_wallet);
+    for (const auto& spk_man_pair : m_spk_managers) {
+        SigningResult res = spk_man_pair.second->SignBlockHash(hash, pkhash, vchSig);
+        if (res == SigningResult::OK) {
+            return res;
+        }
+    }
+    return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
+}
 OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& change_type, const std::vector<CRecipient>& vecSend) const
 {
     // If -changetype is specified, always use that change type.
@@ -3303,7 +3334,7 @@ int CWallet::GetTxBlocksToMaturity(const CWalletTx& wtx) const
 {
     AssertLockHeld(cs_wallet);
 
-    if (!wtx.IsCoinBase()) {
+    if (!wtx.IsCoinBase() && !wtx.IsCoinStake()) {
         return 0;
     }
     int chain_depth = GetTxDepthInMainChain(wtx);
@@ -3417,8 +3448,7 @@ ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(const uint256& id) const
 
 std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script) const
 {
-    SignatureData sigdata;
-    return GetSolvingProvider(script, sigdata);
+    return GetSolvingProvider(script, false);
 }
 
 std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script, SignatureData& sigdata) const
@@ -3426,6 +3456,19 @@ std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& scri
     for (const auto& spk_man_pair : m_spk_managers) {
         if (spk_man_pair.second->CanProvide(script, sigdata)) {
             return spk_man_pair.second->GetSolvingProvider(script);
+        }
+    }
+    return nullptr;
+}
+
+std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script, bool include_private) const
+{
+    AssertLockHeld(cs_wallet);
+
+    for (const auto& spk_man_pair : m_spk_managers) {
+        SignatureData dummy_sigdata; // Dummy SignatureData
+        if (spk_man_pair.second->CanProvide(script, dummy_sigdata)) {
+            return spk_man_pair.second->GetSolvingProvider(script, include_private);
         }
     }
     return nullptr;

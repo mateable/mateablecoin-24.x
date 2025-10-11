@@ -113,7 +113,7 @@ CAmount CachedTxGetCredit(const CWallet& wallet, const CWalletTx& wtx, const ism
     AssertLockHeld(wallet.cs_wallet);
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
-    if (wallet.IsTxImmatureCoinBase(wtx))
+    if (wtx.IsCoinBase() && wallet.IsTxImmatureCoinBase(wtx))
         return 0;
 
     CAmount credit = 0;
@@ -166,7 +166,7 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
     bool allow_cache = (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
-    if (wallet.IsTxImmatureCoinBase(wtx))
+    if (wtx.IsCoinBase() && wallet.IsTxImmatureCoinBase(wtx))
         return 0;
 
     if (allow_cache && wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].m_cached[filter]) {
@@ -342,11 +342,15 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
     {
         LOCK(wallet.cs_wallet);
         std::set<uint256> trusted_parents;
+        int max_depth = 0;
         for (const auto& entry : wallet.mapWallet)
         {
             const CWalletTx& wtx = entry.second;
             const bool is_trusted{CachedTxIsTrusted(wallet, wtx, trusted_parents)};
             const int tx_depth{wallet.GetTxDepthInMainChain(wtx)};
+            if (tx_depth > max_depth) {
+                max_depth = tx_depth;
+            }
             const CAmount tx_credit_mine{CachedTxGetAvailableCredit(wallet, wtx, ISMINE_SPENDABLE | reuse_filter)};
             const CAmount tx_credit_watchonly{CachedTxGetAvailableCredit(wallet, wtx, ISMINE_WATCH_ONLY | reuse_filter)};
             if (is_trusted && tx_depth >= min_depth) {
@@ -360,6 +364,7 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
             ret.m_mine_immature += CachedTxGetImmatureCredit(wallet, wtx, ISMINE_SPENDABLE);
             ret.m_watchonly_immature += CachedTxGetImmatureCredit(wallet, wtx, ISMINE_WATCH_ONLY);
         }
+        wallet.SetGreatestTxnDepth(max_depth);
     }
     return ret;
 }

@@ -203,7 +203,14 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         //
         // Credit
         //
-        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
+        int nRequiredDepth = std::min((int)COINBASE_MATURITY, numBlocks / 2);
+        if (wtx.is_coinstake && status.depth_in_main_chain > 0 && status.depth_in_main_chain < nRequiredDepth) {
+            int blocks_to_stake_maturity = nRequiredDepth - status.depth_in_main_chain;
+            strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + " (" + tr("matures for staking in %n more block(s)", "", blocks_to_stake_maturity) + ")<br>";
+            nNet = 0;
+        } else {
+            strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
+        }
     }
     else
     {

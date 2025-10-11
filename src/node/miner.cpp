@@ -141,6 +141,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->nTime = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
     m_lock_time_cutoff = pindexPrev->GetMedianTimePast();
+    fIncludeWitness = true;
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
