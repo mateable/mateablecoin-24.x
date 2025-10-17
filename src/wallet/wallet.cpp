@@ -6,6 +6,7 @@
 #include <wallet/wallet.h>
 
 #include <chain.h>
+#include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -47,14 +48,13 @@
 
 using interfaces::FoundBlock;
 
+namespace wallet {
 int COINBASE_MATURITY_;
 
 void SetCoinBaseMaturity(int in)
 {
     COINBASE_MATURITY_ = in;
 }
-
-namespace wallet {
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
         "You need to rescan the blockchain in order to correctly mark used "
@@ -3347,6 +3347,17 @@ bool CWallet::IsTxImmatureCoinBase(const CWalletTx& wtx) const
     AssertLockHeld(cs_wallet);
 
     // note GetBlocksToMaturity is 0 for non-coinbase tx
+    return GetTxBlocksToMaturity(wtx) > 0;
+}
+
+bool CWallet::IsTxImmatureCoinStake(const CWalletTx& wtx) const
+{
+    AssertLockHeld(cs_wallet);
+
+    if (!wtx.IsCoinStake()) {
+        return false;
+    }
+    // Use the same logic as for coinbase transactions.
     return GetTxBlocksToMaturity(wtx) > 0;
 }
 

@@ -50,9 +50,9 @@ class CScript;
 enum class FeeEstimateMode;
 struct bilingual_str;
 
-void SetCoinBaseMaturity(int in);
-
 namespace wallet {
+extern int COINBASE_MATURITY_;
+void SetCoinBaseMaturity(int in);
 struct WalletContext;
 
 //! Explicitly unload and delete the wallet.
@@ -446,6 +446,7 @@ public:
      */
     int GetTxBlocksToMaturity(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool IsTxImmatureCoinBase(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool IsTxImmatureCoinStake(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! check whether we support the named feature
     bool CanSupportFeature(enum WalletFeature wf) const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { AssertLockHeld(cs_wallet); return IsFeatureSupported(nWalletVersion, wf); }

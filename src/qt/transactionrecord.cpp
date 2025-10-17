@@ -42,8 +42,25 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     {
         TransactionRecord sub(hash, nTime);
         sub.type = Staked;
-        sub.credit = nCredit;
-        sub.debit = -nDebit;
+        CAmount nTrueCredit = wtx.tx->GetValueOut();
+        CAmount nReward = nTrueCredit - nDebit;
+        sub.credit = nReward;
+        sub.debit = 0;
+
+        for (const isminetype mine : wtx.txin_is_mine) {
+            if (mine & wallet::ISMINE_WATCH_ONLY) {
+                sub.involvesWatchAddress = true;
+                break;
+            }
+        }
+        if (!sub.involvesWatchAddress) {
+            for (const isminetype mine : wtx.txout_is_mine) {
+                if (mine & wallet::ISMINE_WATCH_ONLY) {
+                    sub.involvesWatchAddress = true;
+                    break;
+                }
+            }
+        }
 
         CTxDestination address;
         if (!ExtractDestination(wtx.tx->vout[1].scriptPubKey, address))

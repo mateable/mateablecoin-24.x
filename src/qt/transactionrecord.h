@@ -130,7 +130,7 @@ public:
     TransactionStatus status;
 
     /** Whether the transaction was sent/received to/from a watch-only address. */
-    bool involvesWatchAddress;
+    bool involvesWatchAddress = false;
 
     /** Return the unique identifier for this transaction record.
      */

@@ -8,7 +8,7 @@
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 
-extern int COINBASE_MATURITY_;
+
 
 namespace wallet {
 isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin)
@@ -115,6 +115,9 @@ CAmount CachedTxGetCredit(const CWallet& wallet, const CWalletTx& wtx, const ism
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (wtx.IsCoinBase() && wallet.IsTxImmatureCoinBase(wtx))
         return 0;
+    // Must wait until coinstake is safely deep enough in the chain before valuing it
+    if (wtx.IsCoinStake() && wallet.IsTxImmatureCoinStake(wtx))
+        return 0;
 
     CAmount credit = 0;
     const isminefilter get_amount_filter{filter & ISMINE_ALL};
@@ -151,7 +154,7 @@ CAmount CachedTxGetImmatureCredit(const CWallet& wallet, const CWalletTx& wtx, c
 {
     AssertLockHeld(wallet.cs_wallet);
 
-    if (wallet.IsTxImmatureCoinBase(wtx) && wallet.IsTxInMainChain(wtx)) {
+    if ((wallet.IsTxImmatureCoinBase(wtx) || wallet.IsTxImmatureCoinStake(wtx)) && wallet.IsTxInMainChain(wtx)) {
         return GetCachableAmount(wallet, wtx, CWalletTx::IMMATURE_CREDIT, filter);
     }
 
@@ -167,6 +170,9 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (wtx.IsCoinBase() && wallet.IsTxImmatureCoinBase(wtx))
+        return 0;
+    // Must wait until coinstake is safely deep enough in the chain before valuing it
+    if (wtx.IsCoinStake() && wallet.IsTxImmatureCoinStake(wtx))
         return 0;
 
     if (allow_cache && wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].m_cached[filter]) {
