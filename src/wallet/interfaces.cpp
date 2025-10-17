@@ -406,6 +406,10 @@ public:
     {
         return GetAvailableBalance(*m_wallet, &coin_control);
     }
+    CAmount getStakingRewards() const override
+    {
+    return m_wallet->GetStakingRewards();
+    }
     isminetype txinIsMine(const CTxIn& txin) override
     {
         LOCK(m_wallet->cs_wallet);
