@@ -3340,7 +3340,11 @@ int CWallet::GetTxBlocksToMaturity(const CWalletTx& wtx) const
         return 0;
     }
     int chain_depth = GetTxDepthInMainChain(wtx);
-    assert(chain_depth >= 0); // coinbase tx should not be conflicted
+    // If chain_depth is negative, it means the transaction is conflicted.
+    // A conflicted transaction cannot mature, so we return 0 locks to maturity.
+    if (chain_depth < 0) {
+    return 0;
+    } 
     return std::max(0, (COINBASE_MATURITY_+1) - chain_depth);
 }
 
