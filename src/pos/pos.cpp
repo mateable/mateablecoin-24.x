@@ -337,7 +337,7 @@ bool CheckStakeUnique(const CBlock& block, bool fUpdate)
     while (listStakeSeen.size() > 1024) {
         const COutPoint& oldest = listStakeSeen.front();
         if (1 != mapStakeSeen.erase(oldest)) {
-            LogPrintf("%s: Warning: mapStakeSeen did not erase %s %n\n", __func__, oldest.hash.ToString(), oldest.n);
+            LogPrintf("%s: Warning: mapStakeSeen did not erase %s %u\n", __func__, oldest.hash.ToString(), oldest.n);
         }
         listStakeSeen.pop_front();
     }

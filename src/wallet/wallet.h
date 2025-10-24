@@ -960,6 +960,7 @@ public:
     int nStakeLimitHeight = 0;
     std::atomic<bool> fStakingEnabled{true};
     CAmount nReserveBalance{0};
+    CAmount nMaxStakingValue{0};
     CAmount nStakeCombineThreshold;
     CAmount nStakeSplitThreshold;
     size_t nMaxStakeCombine = 3;

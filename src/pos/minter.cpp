@@ -487,6 +487,7 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
 
     setCoinsRet.clear();
     nValueRet = 0;
+    CAmount nMaxValue = wallet->nMaxStakingValue;
 
     for (const auto& output : vCoins) {
         const auto& txout = output.txout;
@@ -519,6 +520,10 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
             break;
         }
 
+        if (nMaxValue > 0 && nValueRet + output.txout.nValue > nMaxValue) {
+            continue;
+        }
+
         CAmount n = output.txout.nValue;
         std::pair<int64_t, std::pair<const wallet::CWalletTx*, unsigned int>> coin;
         {
@@ -543,6 +548,7 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
 
     return true;
 }
+
 
 bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, int nBlockHeight, int64_t nFees, CMutableTransaction& txNew, CKey& key, Chainstate& chain_state)
 {

@@ -54,6 +54,7 @@ static const char* SettingName(OptionsModel::OptionID option)
     case OptionsModel::ProxyPortTor: return "onion";
     case OptionsModel::ProxyUseTor: return "onion";
     case OptionsModel::Language: return "lang";
+    case OptionsModel::MaxStakingValue: return "maxstakingvalue";
     default: throw std::logic_error(strprintf("GUI option %i has no corresponding node setting.", option));
     }
 }
@@ -423,6 +424,8 @@ QVariant OptionsModel::getOption(OptionID option) const
         return fCoinControlFeatures;
     case EnablePSBTControls:
         return settings.value("enable_psbt_controls");
+    case MaxStakingValue:
+        return qlonglong(SettingToInt(setting(), 0));
     case Prune:
         return PruneEnabled(setting());
     case PruneSize:
@@ -577,6 +580,11 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value)
     case EnablePSBTControls:
         m_enable_psbt_controls = value.toBool();
         settings.setValue("enable_psbt_controls", m_enable_psbt_controls);
+        break;
+    case MaxStakingValue:
+        if (changed()) {
+            update(static_cast<int64_t>(value.toLongLong()));
+        }
         break;
     case Prune:
         if (changed()) {

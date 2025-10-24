@@ -609,7 +609,48 @@ static RPCHelpMan upgradewallet()
     };
 }
 
+static RPCHelpMan maxstakingvalue()
+{
+    return RPCHelpMan{"maxstakingvalue",
+                "\nReturns or sets the maximum staking value.\n",
+                {
+                    {"value", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The maximum value of coins to use for staking, 0 for no limit"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR_AMOUNT, "maxstakingvalue", "The current maximum staking value"},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("maxstakingvalue", "")
+            + HelpExampleCli("maxstakingvalue", "10000")
+            + HelpExampleRpc("maxstakingvalue", "")
+            + HelpExampleRpc("maxstakingvalue", "10000")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    if (request.params.size() > 0 && !request.params[0].isNull()) {
+        CAmount nMaxStakingValue = AmountFromValue(request.params[0]);
+        if (nMaxStakingValue < 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "maxstakingvalue must be non-negative");
+        }
+        pwallet->nMaxStakingValue = nMaxStakingValue;
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("maxstakingvalue", ValueFromAmount(pwallet->nMaxStakingValue));
+    return obj;
+},
+    };
+}
+
 RPCHelpMan simulaterawtransaction()
+
+
 {
     return RPCHelpMan{"simulaterawtransaction",
         "\nCalculate the balance change resulting in the signing and broadcasting of the given transaction(s).\n",
@@ -963,6 +1004,7 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &signmessage},
         {"wallet", &signrawtransactionwithwallet},
         {"wallet", &simulaterawtransaction},
+        {"wallet", &maxstakingvalue},
         {"wallet", &sendall},
         {"wallet", &unloadwallet},
         {"wallet", &upgradewallet},
