@@ -312,31 +312,31 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message numerus="yes">
         <source>%n second(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nวินาที</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>%n minute(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nนาที</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>%n hour(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nชั่วโมง</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>%n day(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nวัน</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>%n week(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nสัปดาห์</numerusform>
         </translation>
     </message>
     <message>
@@ -346,7 +346,7 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message numerus="yes">
         <source>%n year(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>%nปี</numerusform>
         </translation>
     </message>
     <message>
@@ -495,6 +495,18 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message>
         <source>Error: No %s addresses available.</source>
         <translation type="unfinished">ข้อผิดพลาด: ไม่มี %s แอดเดรสพร้อมใช้งาน</translation>
+    </message>
+    <message>
+        <source>Error: This wallet already uses SQLite</source>
+        <translation type="unfinished">ข้อผิดพลาด: วอลเล็ตนี้ใช้ SQLite อยู่แล้ว</translation>
+    </message>
+    <message>
+        <source>Error: Unable to make a backup of your wallet</source>
+        <translation type="unfinished">ข้อผิดพลาด: ไม่สามารถสำรองข้อมูลของวอลเล็ตได้</translation>
+    </message>
+    <message>
+        <source>Error: Unable to read all records in the database</source>
+        <translation type="unfinished">ข้อผิดพลาด: ไม่สามารถอ่านข้อมูลทั้งหมดในฐานข้อมูลได้</translation>
     </message>
     <message>
         <source>Error: Unable to write record to new wallet</source>
@@ -1526,19 +1538,19 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message numerus="yes">
         <source>%n GB of space available</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>มีพื้นที่ว่าง %n GB ที่ใช้งานได้</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>(of %n GB needed)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>(ต้องการพื้นที่ %n GB )</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>(%n GB needed for full chain)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>(%n GB needed for full chain)</numerusform>
         </translation>
     </message>
     <message>
@@ -1553,7 +1565,7 @@ Signing is only possible with addresses of the type 'legacy'</translation>
         <source>(sufficient to restore backups %n day(s) old)</source>
         <extracomment>Explanatory text on the capability of the current prune target.</extracomment>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>(sufficient to restore backups %n day(s) old)</numerusform>
         </translation>
     </message>
     <message>
@@ -2421,7 +2433,7 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>Estimated to begin confirmation within %n block(s).</numerusform>
         </translation>
     </message>
     <message>
@@ -2560,7 +2572,7 @@ Signing is only possible with addresses of the type 'legacy'</translation>
     <message numerus="yes">
         <source>matures in %n more block(s)</source>
         <translation type="unfinished">
-            <numerusform />
+            <numerusform>matures in %n more block(s)</numerusform>
         </translation>
     </message>
     <message>
