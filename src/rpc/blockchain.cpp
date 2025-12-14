@@ -430,16 +430,24 @@ static RPCHelpMan syncwithvalidationinterfacequeue()
     };
 }
 
+static const CBlockIndex* GetLastPoWBlockIndex(const CBlockIndex* pindex)
+{
+    while (pindex && pindex->pprev && !pindex->IsProofOfWork()) {
+        pindex = pindex->pprev;
+    }
+    return pindex;
+}
+
 static RPCHelpMan getdifficulty()
 {
     return RPCHelpMan{"getdifficulty",
-                "\nReturns the proof-of-work difficulty of the current algorithm, as a multiple of the minimum difficulty.\n",
+                "\nReturns the proof-of-work difficulty of the last PoW block and the next PoS difficulty.\n",
                 {},
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
                         {
-                            {RPCResult::Type::NUM, "proof-of-work", "the difficulty as a multiple of the minimum difficulty of proof of work blocks"},
-                            {RPCResult::Type::NUM, "proof-of-stake", "the difficulty as a multiple of the minimum difficulty of proof of stake blocks"},
+                            {RPCResult::Type::NUM, "proof-of-work", "proof of work difficulty of the last PoW block"},
+                            {RPCResult::Type::NUM, "proof-of-stake", "the difficulty as a multiple of the minimum difficulty of the next proof of stake block"},
                         }},
                 RPCExamples{
                     HelpExampleCli("getdifficulty", "")
@@ -449,9 +457,21 @@ static RPCHelpMan getdifficulty()
 {
     ChainstateManager& chainman = EnsureAnyChainman(request.context);
     LOCK(cs_main);
+    const CBlockIndex* pindex = chainman.ActiveChain().Tip();
     UniValue obj(UniValue::VOBJ);
-    obj.pushKV("proof-of-work", GetDifficulty(chainman.ActiveChain().Tip()));
-    obj.pushKV("proof-of-stake", GetDifficulty(GetLastPoSBlockIndex(chainman.ActiveChain().Tip())));
+
+    // PoW
+    const CBlockIndex* pow_pindex = GetLastPoWBlockIndex(pindex);
+    if (pow_pindex && pow_pindex->IsProofOfWork()) {
+        obj.pushKV("proof-of-work", GetDifficulty(pow_pindex));
+    } else {
+        obj.pushKV("proof-of-work", 0);
+    }
+
+    // PoS
+    unsigned int nBitsPoS = GetNextWorkRequiredPoS(pindex, chainman.GetConsensus());
+    obj.pushKV("proof-of-stake", GetDifficulty(nBitsPoS));
+
     return obj;
 },
     };

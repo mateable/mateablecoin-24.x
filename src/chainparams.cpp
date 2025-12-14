@@ -174,7 +174,7 @@ public:
         // Deployment of Taproot (BIPs 340–342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = 1762579200; // Nov 8, 2025
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout   = 1843939200; // Nov 8, 2028
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1843939200; // Nov 8, 2028
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 4000000; // optional delay before enforcing
 
 
@@ -282,9 +282,9 @@ public:
         consensus.BIP34Hash = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
-        consensus.CSVHeight = 0;
-        consensus.SegwitHeight = 0;
-        consensus.MinBIP9WarningHeight = 0;
+        consensus.CSVHeight = 5;
+        consensus.SegwitHeight = 5;
+        consensus.MinBIP9WarningHeight = 4;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
@@ -319,8 +319,8 @@ public:
         // Deployment of Taproot (BIPs 340–342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = 1762579200; // Nov 8, 2025
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout   = 1843939200; // Nov 8, 2028
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 50; // optional delay before enforcing
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1843939200; // Nov 8, 2028
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 10; // optional delay before enforcing
 
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
