@@ -1492,17 +1492,26 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     } else if (nHeight <= 3999999) {
         // Reward is 3.34375 from block height 2,000,000 to 3,999,999
         nSubsidy = 3.34375 * COIN;
-    } else if (nHeight <= 3599999) {
-        // Reward is 1.671875 from block height 3,000,000 to 3,599,999
-        nSubsidy = 1.671875 * COIN;
     } else if (nHeight <= 4599999) {
-        // Reward is 1 from block height 3,600,000 to 4,599,999
+        // Reward is 1 from block height 4,000,000 to 4,599,999
+        nSubsidy = 1 * COIN;
+    } else if (nHeight <= 5599999) {
+        // Reward is 3 from block height 4,600,000 to 5,599,999
+        nSubsidy = 3 * COIN;
+    } else if (nHeight <= 6599999) {
+        // Reward is 6 from block height 5,600,000 to 6,599,999
+        nSubsidy = 6 * COIN;
+    } else if (nHeight <= 7599999) {
+        // Reward is 3 from block height 6,600,000 to 7,599,999
+        nSubsidy = 3 * COIN;
+    } else if (nHeight <= 8599999) {
+        // Reward is 1 from block height 7,600,000 to 8,599,999
         nSubsidy = 1 * COIN;
     } else {
         // For heights after the defined schedule, set a minimum reward
-        nSubsidy = 0.0000001 * COIN;
+        nSubsidy = 1 * COIN;
     }
-    
+
     return nSubsidy;
 }
 
