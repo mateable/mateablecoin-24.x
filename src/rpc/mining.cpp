@@ -77,6 +77,9 @@ double GetNetworkHashPS(int lookup, int height, const CChain& active_chain, cons
     int64_t minTime = pb0->GetBlockTime();
     int64_t maxTime = minTime;
     for (int i = 0; i < lookup; i++) {
+        if (!pb0->pprev) {
+            break;
+        }
         pb0 = pb0->pprev;
         int64_t time = pb0->GetBlockTime();
         minTime = std::min(time, minTime);
@@ -93,7 +96,7 @@ double GetNetworkHashPS(int lookup, int height, const CChain& active_chain, cons
     } else {
         int algoBlocks = 0;
         const CBlockIndex* current = pb;
-        while (current && algoBlocks < lookup) {
+        while (current && current->pprev && algoBlocks < lookup) {
             if (current->GetBlockPowAlgo() == algoName) {
                 workDiff += current->nChainWork - current->pprev->nChainWork;
                 algoBlocks++;
@@ -438,6 +441,14 @@ static RPCHelpMan generateblock()
     };
 }
 
+static const CBlockIndex* GetLastPoWBlockIndex(const CBlockIndex* pindex)
+{
+    while (pindex && pindex->pprev && !pindex->IsProofOfWork()) {
+        pindex = pindex->pprev;
+    }
+    return pindex;
+}
+
 static RPCHelpMan getmininginfo()
 {
     return RPCHelpMan{"getmininginfo",
@@ -449,11 +460,21 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "blocks", "The current block"},
                         {RPCResult::Type::NUM, "currentblockweight", /*optional=*/true, "The block weight of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::NUM, "currentblocktx", /*optional=*/true, "The number of block transactions of the last assembled block (only present if a block was ever assembled)"},
-                        {RPCResult::Type::NUM, "pow_algo", "The current algo"},
-                        {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
-                        {RPCResult::Type::NUM, "difficulties", "The current difficulty for all 5 MTBC algos."},
+                        {RPCResult::Type::STR, "pow_algo", "The current algo"},
+                        {RPCResult::Type::OBJ, "difficulty", "The current difficulty",
+                            {
+                                {RPCResult::Type::NUM, "proof-of-work", "the difficulty of the last PoW block"},
+                                {RPCResult::Type::NUM, "proof-of-stake", "the difficulty of the next PoS block"},
+                            }},
+                        {RPCResult::Type::OBJ, "difficulties", "The current difficulty for each PoW algorithm",
+                            {
+                                {RPCResult::Type::NUM, "algo_name", "the difficulty for this algorithm"},
+                            }},
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
-                        {RPCResult::Type::NUM, "networkhashesps", "The network hashes per second for all 5 MTBC algos."},
+                        {RPCResult::Type::OBJ, "networkhashesps", "The network hashes per second for each PoW algorithm",
+                            {
+                                {RPCResult::Type::NUM, "algo_name", "the network hashes per second for this algorithm"},
+                            }},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
                         {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
@@ -469,54 +490,46 @@ static RPCHelpMan getmininginfo()
     ChainstateManager& chainman = EnsureChainman(node);
     LOCK(cs_main);
     const CChain& active_chain = chainman.ActiveChain();
+    const CBlockIndex* pindex = active_chain.Tip();
 
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("blocks",           active_chain.Height());
     if (BlockAssembler::m_last_block_weight) obj.pushKV("currentblockweight", *BlockAssembler::m_last_block_weight);
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
-    UniValue obj2(UniValue::VOBJ);
-    obj.pushKV("pow_algo",           GetAlgoName(defaultAlgo));
 
-    obj2.pushKV("proof-of-work", GetDifficulty(active_chain.Tip()));
-    obj2.pushKV("proof-of-stake", GetDifficulty(GetLastPoSBlockIndex(active_chain.Tip())));
-    obj.pushKV("difficulty", obj2);
-  
-UniValue result(UniValue::VOBJ);
-const CBlockIndex* pindex = chainman.ActiveChain().Tip();  // Get the current block index
+    obj.pushKV("pow_algo", GetAlgoName(defaultAlgo));
 
-for (unsigned int i = 0; i < NUM_ALGOS; i++) {
-    if (IsAlgoActive(pindex, i, chainman.GetConsensus())) {
-        std::string algoName = GetAlgoName(i);
-        
-        // Get the block index corresponding to the current algorithm
-        const CBlockIndex* algoIndex = GetLastBlockIndexForAlgo(pindex, i, chainman.GetConsensus());
-        
-        if (algoIndex) {
-            // Get the difficulty as double using the block index
-            double algoDifficulty = GetDifficulty(algoIndex);
-            
-            // Add the difficulty directly to the result object
-            result.pushKV(algoName, algoDifficulty);
+    UniValue difficulty_obj(UniValue::VOBJ);
+    const CBlockIndex* pow_pindex = GetLastPoWBlockIndex(pindex);
+    if (pow_pindex && pow_pindex->IsProofOfWork()) {
+        difficulty_obj.pushKV("proof-of-work", GetDifficulty(pow_pindex));
+    } else {
+        difficulty_obj.pushKV("proof-of-work", 0);
+    }
+    unsigned int nBitsPoS = GetNextWorkRequiredPoS(pindex, chainman.GetConsensus());
+    difficulty_obj.pushKV("proof-of-stake", GetDifficulty(nBitsPoS));
+    obj.pushKV("difficulty", difficulty_obj);
+
+    UniValue difficulties(UniValue::VOBJ);
+    for (unsigned int i = 0; i < NUM_ALGOS; i++) {
+        if (IsAlgoActive(pindex, i, chainman.GetConsensus())) {
+            std::string algoName = GetAlgoName(i);
+            const CBlockIndex* algoIndex = GetLastBlockIndexForAlgo(pindex, i, chainman.GetConsensus());
+            if (algoIndex) {
+                difficulties.pushKV(algoName, GetDifficulty(algoIndex));
+            }
         }
     }
-}
+    obj.pushKV("difficulties", difficulties);
 
-obj.pushKV("difficulties", result); // Push difficulties object to the main object
-
-
- UniValue networkhashesps(UniValue::VOBJ);
-            for (unsigned int i = 0; i < NUM_ALGOS; i++) {
-                if (IsAlgoActive(pindex, i, chainman.GetConsensus())) {
-                    std::string algoName = GetAlgoName(i);
-
-                    // Calculate the network hash rate for the current algorithm
-                    double algoNetworkhashesps = GetNetworkHashPS(120, -1, chainman.ActiveChain(), algoName);
-
-                    // Add the network hash rate directly to the result object
-                    networkhashesps.pushKV(algoName, algoNetworkhashesps);
-                }
-            } 
-    obj.pushKV("networkhashps",    getnetworkhashps().HandleRequest(request));
+    UniValue networkhashesps(UniValue::VOBJ);
+    for (unsigned int i = 0; i < NUM_ALGOS; i++) {
+        if (IsAlgoActive(pindex, i, chainman.GetConsensus())) {
+            std::string algoName = GetAlgoName(i);
+            networkhashesps.pushKV(algoName, GetNetworkHashPS(120, -1, active_chain, algoName));
+        }
+    }
+    obj.pushKV("networkhashps",    GetNetworkHashPS(120, -1, active_chain, ""));
     obj.pushKV("networkhashesps",    networkhashesps);
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain", chainman.GetParams().NetworkIDString());
@@ -525,7 +538,6 @@ obj.pushKV("difficulties", result); // Push difficulties object to the main obje
 },
     };
 }
-
 
 // NOTE: Unlike wallet RPC (which use BTC values), mining RPCs follow GBT (BIP 22) in using satoshi amounts
 static RPCHelpMan prioritisetransaction()
