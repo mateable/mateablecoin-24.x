@@ -206,22 +206,44 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
             ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount total = balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance;
+            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            if (m_privacy) {
+                ui->labelTotalUSD->setText(QString("#.########"));
+            } else {
+                double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+                ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+            }
         } else {
             ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount total = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            if (m_privacy) {
+                ui->labelTotalUSD->setText(QString("#.########"));
+            } else {
+                double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+                ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+            }
             ui->labelWatchAvailable->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelWatchPending->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelWatchImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount watch_total = balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance;
+            ui->labelWatchTotal->setText(BitcoinUnits::formatWithPrivacy(unit, watch_total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         }
     } else {
         ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-        ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+        CAmount total = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+        ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+        if (m_privacy) {
+            ui->labelTotalUSD->setText(QString("#.########"));
+        } else {
+            double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+            ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+        }
     }
 
     // Set staking rewards
@@ -332,6 +354,25 @@ void OverviewPage::setPriceData()
     std::string newPriceData;
     return_random_exchange(newPriceData);
     this->ui->priceData->setText(QString::fromStdString(newPriceData));
+
+    // Parse price from the string
+    if (!newPriceData.empty()) {
+        QStringList parts = QString::fromStdString(newPriceData).split(QRegExp("\\s+"), QString::SkipEmptyParts);
+        if (parts.size() >= 2) {
+            bool ok;
+            double price = parts.last().toDouble(&ok);
+            if (ok) {
+                m_price = price;
+            }
+        }
+    }
+    // After updating the price, we need to update the balance display
+    if (walletModel) {
+        const auto& balances = walletModel->getCachedBalance();
+        if (balances.balance != -1) {
+            setBalance(balances);
+        }
+    }
 }
 
 void OverviewPage::setAnnouncementData()
@@ -397,4 +438,5 @@ void OverviewPage::setMonospacedFont(bool use_embedded_font)
     ui->labelWatchImmature->setFont(f);
     ui->labelWatchTotal->setFont(f);
     ui->labelStakingRewards->setFont(f);
+    ui->labelTotalUSD->setFont(f);
 }

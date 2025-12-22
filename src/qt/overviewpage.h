@@ -56,6 +56,7 @@ private:
     ClientModel *clientModel;
     WalletModel *walletModel;
     bool m_privacy{false};
+    double m_price{0.0};
 
     const PlatformStyle* m_platform_style;
 
