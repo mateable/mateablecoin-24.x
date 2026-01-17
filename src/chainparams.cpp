@@ -138,14 +138,14 @@ public:
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.CSVHeight = 4000000;
-        consensus.SegwitHeight = 2521600;
-        consensus.MinBIP9WarningHeight = 2520000; // segwit activation height + miner confirmation window
+        consensus.SegwitHeight = 462100;
+        consensus.MinBIP9WarningHeight = 460000; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 1 * 60;
-        consensus.nPowTargetSpacing = 1 * 60;
+        consensus.nPowTargetSpacing = 15;
         consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPosTargetTimespan = 5 * 60;
-        consensus.nPosTargetSpacing = 1 * 60;
+        consensus.nPosTargetSpacing = 15;
         consensus.nStakeMinAge = 10 * 60;
         consensus.nStakeMaxAge = 60 * 60 * 24 * 30;
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -157,25 +157,25 @@ public:
         consensus.nMultiAlgoStartBlock = 150000;
         consensus.nPosStartBlock = consensus.nMultiAlgoStartBlock;
         consensus.nAveragingInterval = 10;
-        consensus.nMultiAlgoTargetSpacing = 30 * NUM_ALGOS;
+        consensus.nMultiAlgoTargetSpacing = 15 * NUM_ALGOS;
         consensus.nMaxAdjustDown = 16;
         consensus.nMaxAdjustUp = 8;
         consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.nMultiAlgoTargetSpacing;
         consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
         consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
         consensus.nLocalTargetAdjustment = 4;
-        consensus.nCoinbaseMaturity = 59;
+        consensus.nCoinbaseMaturity = 120;
 
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
 
-        // Deployment of Taproot (BIPs 340�342)
+        // Deployment of Taproot (BIPs 340342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = 1771200000; // Feb 16, 2026
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = 1769904000; // Feb 1, 2026
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1843939200; // Nov 8, 2028
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 2543200; // optional delay before enforcing
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 542740; // optional delay before enforcing
 
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000002dfa95b2102058d");  //yescrypt
