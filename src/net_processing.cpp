@@ -3167,6 +3167,13 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(msg_type), vRecv.size(), pfrom.GetId());
 
+    if (msg_type != NetMsgType::BLOCK && msg_type != NetMsgType::TX && msg_type != NetMsgType::BLOCKTXN && msg_type != NetMsgType::CMPCTBLOCK) {
+        if (vRecv.size() > 2 * 1024 * 1024) {
+             LogPrintf("ProcessMessage: Message %s from peer=%d too large (%u bytes), dropping.\n", SanitizeString(msg_type), pfrom.GetId(), vRecv.size());
+             return;
+        }
+    }
+
     PeerRef peer = GetPeerRef(pfrom.GetId());
     if (peer == nullptr) return;
 

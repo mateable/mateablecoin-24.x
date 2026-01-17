@@ -607,6 +607,13 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
                 std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
                 if (!provider) return false;
                 return provider->GetKey(keyid, key);
+            } else if (const WitnessV1Taproot* tap = std::get_if<WitnessV1Taproot>(&dest)) {
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                if (!provider) return false;
+                for (const auto& keyid : tap->GetKeyIDs()) {
+                    if (provider->GetKey(keyid, key)) return true;
+                }
+                return false;
             }
             return false;
         };
@@ -695,6 +702,33 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
                 } else {
                     scriptPubKeyOut = GetScriptForDestination(ScriptHash(CScriptID(hash160)));
                 }
+            }
+        } else if (whichType == TxoutType::WITNESS_V1_TAPROOT) {
+            XOnlyPubKey xonly(vSolutions[0]);
+            WitnessV1Taproot tap(xonly);
+            if (wallet->IsLegacy()) {
+                auto spk_man = wallet->GetLegacyScriptPubKeyMan();
+                if (!spk_man) return false;
+                bool found = false;
+                for (const auto& keyid : xonly.GetKeyIDs()) {
+                    if (spk_man->GetKey(keyid, key)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+                scriptPubKeyOut = GetScriptForDestination(tap);
+            } else { // Descriptor wallet
+                CTxDestination dest;
+                if (!ExtractDestination(scriptPubKeyKernel, dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to extract destination from kernel script %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+                if (!GetKeyFromProviderForDest(dest)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to obtain key from provider for descriptor wallet output %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+                scriptPubKeyOut = GetScriptForDestination(tap);
             }
         } else if (whichType == TxoutType::PUBKEY) {
             CPubKey pubKey(vSolutions[0]);

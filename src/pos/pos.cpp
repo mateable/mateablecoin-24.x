@@ -190,6 +190,8 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
     // pindexPrev is the current tip, the block the new block will connect on to
     // nTime is the time of the new/next block
 
+    auto start_time = GetTimeMicros();
+
     //auto& pblocktree { chain_state.m_blockman.m_block_tree_db };
 
     if (!tx.IsCoinStake() || tx.vin.size() < 1) {
@@ -241,6 +243,11 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
             amount, txin.prevout, nTime, hashProofOfStake, targetProofOfStake, LogAcceptCategory(BCLog::POS, BCLog::Level::Debug))) {
         LogPrintf("WARNING: %s: Check kernel failed on coinstake %s, hashProof=%s\n", __func__, tx.GetHash().ToString(), hashProofOfStake.ToString());
         return false;
+    }
+
+    auto duration = GetTimeMicros() - start_time;
+    if (duration > 50000) { // 50ms
+        LogPrintf("WARNING: %s took %d micros\n", __func__, duration);
     }
 
     return true;
