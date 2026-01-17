@@ -138,8 +138,8 @@ public:
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.CSVHeight = 4000000;
-        consensus.SegwitHeight = 462100;
-        consensus.MinBIP9WarningHeight = 460000; // segwit activation height + miner confirmation window
+        consensus.SegwitHeight = 3678000;
+        consensus.MinBIP9WarningHeight = 3676000; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 1 * 60;
         consensus.nPowTargetSpacing = 15;
@@ -175,7 +175,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = 1769904000; // Feb 1, 2026
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = 1843939200; // Nov 8, 2028
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 542740; // optional delay before enforcing
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 3688100; // optional delay before enforcing
 
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000002dfa95b2102058d");  //yescrypt
