@@ -45,7 +45,6 @@ void bitstream_init(struct bitstream* b)
     SHA256_Init(&b->c);
     b->initialized = false;
     b->ctx = EVP_CIPHER_CTX_new();
-    EVP_CIPHER_CTX_init(b->ctx);
     b->zeros = (uint8_t*)malloc(BITSTREAM_BUF_SIZE * sizeof(uint8_t));
     memset(b->zeros, 0, BITSTREAM_BUF_SIZE);
 }
@@ -55,7 +54,7 @@ void bitstream_free(struct bitstream* b)
     uint8_t out[AES_BLOCK_SIZE];
     int outl;
     EVP_EncryptFinal(b->ctx, out, &outl);
-    EVP_CIPHER_CTX_cleanup(b->ctx);
+    EVP_CIPHER_CTX_reset(b->ctx);
     EVP_CIPHER_CTX_free(b->ctx);
     free(b->zeros);
 }
