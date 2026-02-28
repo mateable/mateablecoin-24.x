@@ -674,14 +674,14 @@ static RPCHelpMan getblocktemplate()
                 {
                     {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "client side supported feature, 'longpoll', 'coinbasevalue', 'proposal', 'serverlist', 'workid'"},
                 }},
-                {"rules", RPCArg::Type::ARR, RPCArg::Optional::NO, "A list of strings",
+                {"rules", RPCArg::Type::ARR, RPCArg::Optional::OMITTED_NAMED_ARG, "A list of strings",
                 {
-                    {"segwit", RPCArg::Type::STR, RPCArg::Optional::NO, "(literal) indicates client side segwit support"},
+                    {"segwit", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "(literal) indicates client side segwit support (required after SegWit activation)"},
                     {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "other client side supported softfork deployment"},
                 }},
             },
                         "\"template_request\""},
-            {"algo", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "The algorithm if a different template is required."},
+            {"algo", RPCArg::Type::STR, RPCArg::Default{GetAlgoName(defaultAlgo)}, "Which mining algorithm to use (scrypt, yescrypt, whirlpool, ghostrider, balloon)."},
         },
         {
             RPCResult{"If the proposal was accepted with mode=='proposal'", RPCResult::Type::NONE, "", ""},
@@ -738,6 +738,8 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::NUM_TIME, "curtime", "current timestamp in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::STR, "bits", "compressed target of next block"},
                 {RPCResult::Type::NUM, "height", "The height of the next block"},
+                {RPCResult::Type::STR, "pow_algo", "The mining algorithm for this block template"},
+                {RPCResult::Type::NUM, "pow_algo_id", "The numeric ID of the mining algorithm"},
                 {RPCResult::Type::STR_HEX, "signet_challenge", /*optional=*/true, "Only on signet"},
                 {RPCResult::Type::STR_HEX, "default_witness_commitment", /*optional=*/true, "a valid witness commitment for the unmodified block template"},
             }},
@@ -888,19 +890,20 @@ static RPCHelpMan getblocktemplate()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"segwit\", \"signet\"]})");
     }
 
-    // GBT must be called with 'segwit' set in the rules
-    if (setClientRules.count("segwit") != 1) {
+    // GBT must be called with 'segwit' set in the rules after SegWit activation
+    if (DeploymentActiveAfter(active_chain.Tip(), chainman, Consensus::DEPLOYMENT_SEGWIT) && setClientRules.count("segwit") != 1) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
     }
 
     // Update block
     static CBlockIndex* pindexPrev;
+    static int lastAlgo{-1};
     static std::unique_ptr<CBlockTemplate> pblocktemplate;
-    if (algoNum != defaultAlgo ||
+    if (algoNum != lastAlgo ||
         pindexPrev != active_chain.Tip() ||
         (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast))
     {
-        defaultAlgo = algoNum;
+        lastAlgo = algoNum;
 
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
@@ -1061,6 +1064,8 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
+    result.pushKV("pow_algo", GetAlgoName(algoNum));
+    result.pushKV("pow_algo_id", algoNum);
 
     if (consensusParams.signet_blocks) {
         result.pushKV("signet_challenge", HexStr(consensusParams.signet_challenge));

@@ -3216,6 +3216,15 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             return;
         }
 
+        // After SegWit/Taproot fork height, disconnect peers running old protocol
+        if (m_chainman.ActiveChain().Height() >= Params().GetConsensus().SegwitHeight) {
+            if (nVersion < PROTOCOL_VERSION) {
+                LogPrint(BCLog::NET, "peer=%d using obsolete version %i (after segwit/taproot fork); disconnecting\n", pfrom.GetId(), nVersion);
+                pfrom.fDisconnect = true;
+                return;
+            }
+        }
+
         if (!vRecv.empty()) {
             // The version message includes information about the sending node which we don't use:
             //   - 8 bytes (service bits)

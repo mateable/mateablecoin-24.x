@@ -16,6 +16,9 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
 
     // Check if this deployment is always active.
     if (nTimeStart == Consensus::BIP9Deployment::ALWAYS_ACTIVE) {
+        if (min_activation_height > 0 && pindexPrev != nullptr && pindexPrev->nHeight + 1 < min_activation_height) {
+            return ThresholdState::LOCKED_IN;
+        }
         return ThresholdState::ACTIVE;
     }
 
