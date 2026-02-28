@@ -30,7 +30,7 @@ bool test_algorithm_sanity()
             powHash = test_block.GetPoWHash();
         }
         if (powHash != algoResult[algo]) {
-            LogPrintf("Algorithm %s provided incorrect result\n");
+            LogPrintf("Algorithm %s provided incorrect result\n", GetAlgoName(algo));
             StartShutdown();
             return false;
         }

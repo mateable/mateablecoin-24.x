@@ -79,7 +79,7 @@ void compress(uint64_t* counter, uint8_t* out, const uint8_t* blocks[], size_t b
 {
     SHA256_CTX ctx;
     SHA256_Init(&ctx);
-    uint8_t* block_buf = (uint8_t*)malloc(blocks_to_comp * BALLOON_BLOCK_SIZE);
+    uint8_t* block_buf = (uint8_t*)malloc(8 + blocks_to_comp * BALLOON_BLOCK_SIZE);
     memcpy(&block_buf[0], counter, 8);
     for (unsigned int i = 0; i < blocks_to_comp; i++) {
         memcpy(&block_buf[8 + i * 32], blocks[i], 32);
