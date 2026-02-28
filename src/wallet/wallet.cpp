@@ -1244,6 +1244,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 
 void CWallet::AbandonOrphanedCoinstakes()
 {
+    LOCK(cs_wallet);
     for (auto& item : mapWallet) {
         const uint256& wtxid = item.first;
         CWalletTx& wtx = item.second;

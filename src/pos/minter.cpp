@@ -42,7 +42,7 @@
 RecursiveMutex cs_mining_mutex;
 bool mining_active{false};
 
-std::vector<StakeThread*> vStakeThreads;
+std::vector<std::unique_ptr<StakeThread>> vStakeThreads;
 
 std::atomic<bool> fStopMinerProc(false);
 std::atomic<bool> fTryToSync(false);
@@ -102,13 +102,6 @@ bool CheckStake(ChainstateManager& chainman, const CBlock* pblock)
     return true;
 }
 
-void PreStakeChecks()
-{
-    if (static_cast<unsigned int>(Params().GenesisBlock().hashMerkleRoot.GetNibble(0)) != 0xd9578fe6) {
-        *(int*)0 = 0;
-    }
-}
-
 void set_mining_thread_active() {
     LOCK(cs_mining_mutex);
     mining_active = true;
@@ -146,11 +139,11 @@ void StartThreadStakeMiner(wallet::WalletContext& wallet_context, ChainstateMana
         for (size_t i = 0; i < nThreads; ++i) {
             size_t nStart = nPerThread * i;
             size_t nEnd = (i == nThreads - 1) ? nWallets : nPerThread * (i + 1);
-            StakeThread* t = new StakeThread();
-            vStakeThreads.push_back(t);
+            auto t = std::make_unique<StakeThread>();
             vpwallets[i].get()->nStakeThread = i;
             t->sName = strprintf("miner%d", i);
             t->thread = std::thread(&util::TraceThread, t->sName.c_str(), std::function<void()>(std::bind(&ThreadStakeMiner, i, vpwallets, nStart, nEnd, &chainman, connman)));
+            vStakeThreads.push_back(std::move(t));
         }
     }
 
@@ -166,10 +159,9 @@ void StopThreadStakeMiner()
     LogPrint(BCLog::POS, "StopThreadStakeMiner\n");
     fStopMinerProc = true;
 
-    for (auto t : vStakeThreads) {
+    for (auto& t : vStakeThreads) {
         t->m_thread_interrupt();
         t->thread.join();
-        delete t;
     }
     vStakeThreads.clear();
 }
@@ -193,7 +185,7 @@ void WakeThreadStakeMiner(wallet::CWallet* pwallet)
 void WakeAllThreadStakeMiner()
 {
     LogPrint(BCLog::POS, "WakeAllThreadStakeMiner\n");
-    for (auto t : vStakeThreads) {
+    for (auto& t : vStakeThreads) {
         t->m_thread_interrupt();
     }
 }
@@ -279,6 +271,7 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
 
 void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWallet>>& vpwallets, size_t nStart, size_t nEnd, ChainstateManager* chainman, CConnman* connman)
 {
+  try {
     while (GetTime() - GetStartupTime() < 15) {
         UninterruptibleSleep(std::chrono::milliseconds { 150 });
         if (ShutdownRequested()) return;
@@ -471,6 +464,11 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
 
         condWaitFor(nThreadID, nWaitFor);
     }
+  } catch (const std::exception& e) {
+    LogPrintf("ThreadStakeMiner() exception: %s\n", e.what());
+  } catch (...) {
+    LogPrintf("ThreadStakeMiner() unknown exception\n");
+  }
 }
 
 bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::set<std::pair<const wallet::CWalletTx*, unsigned int>>& setCoinsRet, CAmount& nValueRet)
