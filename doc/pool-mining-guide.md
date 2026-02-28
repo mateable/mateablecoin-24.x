@@ -46,10 +46,22 @@ Multi-algo mining starts at block 150,000. PoS also starts at block 150,000.
 
 ## Block Reward Schedule
 
-| Block Range        | PoW Reward | Notes                    |
-|--------------------|------------|--------------------------|
-| 1 - 149,999        | 50 MTBC    | Single algo (scrypt)     |
-| 150,000+           | 50 MTBC    | Multi-algo + PoS enabled |
+| Block Range              | PoW Reward   | Notes                                        |
+|--------------------------|--------------|----------------------------------------------|
+| 1                        | 100,000,000  | Premine block                                |
+| 2 - 199,999              | 214 MTBC     | Single algo (scrypt); multi-algo at 150,000  |
+| 200,000 - 399,999        | 107 MTBC     | PoS starts at block 150,000                  |
+| 400,000 - 599,999        | 53.5 MTBC    |                                              |
+| 600,000 - 799,999        | 26.75 MTBC   |                                              |
+| 800,000 - 999,999        | 13.375 MTBC  |                                              |
+| 1,000,000 - 1,999,999    | 6.6875 MTBC  |                                              |
+| 2,000,000 - 3,999,999    | 3.34375 MTBC |                                              |
+| 4,000,000 - 4,599,999    | 1 MTBC       | SegWit + Taproot activate at block 4,000,000 |
+| 4,600,000 - 5,599,999    | 3 MTBC       |                                              |
+| 5,600,000 - 6,599,999    | 6 MTBC       |                                              |
+| 6,600,000 - 7,599,999    | 3 MTBC       |                                              |
+| 7,600,000 - 8,599,999    | 1 MTBC       |                                              |
+| 8,600,000+               | 1 MTBC       | Minimum perpetual reward                     |
 
 - Coinbase maturity: **59 blocks** (must wait 59 confirmations before spending)
 - Block time: **~1 minute** per block across all algos combined

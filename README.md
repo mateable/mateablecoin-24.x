@@ -46,6 +46,13 @@ expose RPC ports to the public internet.
 | P2P      |   6969 |   
 | RPC      |   6966 |  
 
+## Block Rewards
+
+MateableCoin has a tiered block reward schedule starting at 214 MTBC with a
+perpetual tail emission of 1 MTBC to keep miners incentivized indefinitely.
+
+See the full [Block Reward Schedule](doc/pool-mining-guide.md#block-reward-schedule) for details.
+
 ## Pool Mining
 
 Mateablecoin supports multi-algorithm mining with 5 PoW algorithms: scrypt,
