@@ -44,7 +44,9 @@ static uint64_t options_n_blocks(const struct balloon_options* opts)
 
 void bitstream_init(struct bitstream* b)
 {
-    SHA256_Init(&b->c);
+    b->md_ctx = EVP_MD_CTX_new();
+    if (!b->md_ctx) abort();
+    EVP_DigestInit_ex(b->md_ctx, EVP_sha256(), nullptr);
     b->initialized = false;
     b->ctx = EVP_CIPHER_CTX_new();
     b->zeros = (uint8_t*)malloc(BITSTREAM_BUF_SIZE * sizeof(uint8_t));
@@ -59,18 +61,20 @@ void bitstream_free(struct bitstream* b)
     EVP_EncryptFinal(b->ctx, out, &outl);
     EVP_CIPHER_CTX_reset(b->ctx);
     EVP_CIPHER_CTX_free(b->ctx);
+    EVP_MD_CTX_free(b->md_ctx);
     free(b->zeros);
 }
 
 void bitstream_seed_add(struct bitstream* b, const void* seed, size_t seedlen)
 {
-    SHA256_Update(&b->c, seed, seedlen);
+    EVP_DigestUpdate(b->md_ctx, seed, seedlen);
 }
 
 void bitstream_seed_finalize(struct bitstream* b)
 {
     uint8_t key_bytes[SHA256_DIGEST_LENGTH];
-    SHA256_Final(key_bytes, &b->c);
+    unsigned int md_len = SHA256_DIGEST_LENGTH;
+    EVP_DigestFinal_ex(b->md_ctx, key_bytes, &md_len);
     uint8_t iv[AES_BLOCK_SIZE];
     memset(iv, 0, AES_BLOCK_SIZE);
     EVP_CIPHER_CTX_set_padding(b->ctx, 1);
@@ -80,16 +84,19 @@ void bitstream_seed_finalize(struct bitstream* b)
 
 void compress(uint64_t* counter, uint8_t* out, const uint8_t* blocks[], size_t blocks_to_comp)
 {
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) abort();
+    EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
     uint8_t* block_buf = (uint8_t*)malloc(8 + blocks_to_comp * BALLOON_BLOCK_SIZE);
     if (!block_buf) abort();
     memcpy(&block_buf[0], counter, 8);
     for (unsigned int i = 0; i < blocks_to_comp; i++) {
         memcpy(&block_buf[8 + i * 32], blocks[i], 32);
     }
-    SHA256_Update(&ctx, block_buf, 8 + blocks_to_comp * 32);
-    SHA256_Final(out, &ctx);
+    EVP_DigestUpdate(ctx, block_buf, 8 + blocks_to_comp * 32);
+    unsigned int md_len = SHA256_DIGEST_LENGTH;
+    EVP_DigestFinal_ex(ctx, out, &md_len);
+    EVP_MD_CTX_free(ctx);
     *counter += 1;
     free(block_buf);
 }
@@ -156,14 +163,17 @@ void hash_state_free(struct hash_state* s)
 
 void hash_state_fill(struct hash_state* s, const uint8_t salt[SALT_LEN], const uint8_t* in, size_t inlen)
 {
-    SHA256_CTX c;
-    SHA256_Init(&c);
-    SHA256_Update(&c, &s->counter, 8);
-    SHA256_Update(&c, salt, SALT_LEN);
-    SHA256_Update(&c, in, inlen);
-    SHA256_Update(&c, &s->opts->s_cost, 8);
-    SHA256_Update(&c, &s->opts->t_cost, 4);
-    SHA256_Final(s->buffer, &c);
+    EVP_MD_CTX* c = EVP_MD_CTX_new();
+    if (!c) abort();
+    EVP_DigestInit_ex(c, EVP_sha256(), nullptr);
+    EVP_DigestUpdate(c, &s->counter, 8);
+    EVP_DigestUpdate(c, salt, SALT_LEN);
+    EVP_DigestUpdate(c, in, inlen);
+    EVP_DigestUpdate(c, &s->opts->s_cost, 8);
+    EVP_DigestUpdate(c, &s->opts->t_cost, 4);
+    unsigned int md_len = SHA256_DIGEST_LENGTH;
+    EVP_DigestFinal_ex(c, s->buffer, &md_len);
+    EVP_MD_CTX_free(c);
     s->counter++;
     expand(&s->counter, s->buffer, s->n_blocks);
 }

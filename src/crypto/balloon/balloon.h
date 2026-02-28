@@ -8,7 +8,7 @@
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>
-#include <openssl/sha.h>
+#include <openssl/sha.h> /* SHA256_DIGEST_LENGTH */
 
 #define BITSTREAM_BUF_SIZE ((32) * (AES_BLOCK_SIZE))
 #define N_NEIGHBORS (3)
@@ -30,7 +30,7 @@ struct balloon_options {
 struct bitstream {
     bool initialized;
     uint8_t* zeros;
-    SHA256_CTX c;
+    EVP_MD_CTX* md_ctx;
     EVP_CIPHER_CTX* ctx;
 };
 
