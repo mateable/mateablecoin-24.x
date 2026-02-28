@@ -32,6 +32,8 @@
 #include <wallet/spend.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
+#include <key.h>
+#include <script/signingprovider.h>
 #include <script/standard.h>
 
 #include <stdint.h>
@@ -610,10 +612,13 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
             } else if (const WitnessV1Taproot* tap = std::get_if<WitnessV1Taproot>(&dest)) {
                 std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
                 if (!provider) return false;
-                for (const auto& keyid : tap->GetKeyIDs()) {
-                    if (provider->GetKey(keyid, key)) return true;
+                // Use TaprootSpendData to find the internal key, then look up by internal key's CKeyID
+                TaprootSpendData spenddata;
+                if (provider->GetTaprootSpendData(*tap, spenddata)) {
+                    if (provider->GetKeyByXOnly(spenddata.internal_key, key)) return true;
                 }
-                return false;
+                // Fallback: try direct lookup by output key (untweaked key-only Taproot)
+                return provider->GetKeyByXOnly(*tap, key);
             }
             return false;
         };
@@ -729,6 +734,21 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
                     return false;
                 }
                 scriptPubKeyOut = GetScriptForDestination(tap);
+            }
+            // Apply Taproot tweak so block signing uses the tweaked (output) key
+            {
+                std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(scriptPubKeyKernel, true);
+                TaprootSpendData spenddata;
+                uint256 merkle_root;
+                if (provider && provider->GetTaprootSpendData(xonly, spenddata)) {
+                    merkle_root = spenddata.merkle_root;
+                }
+                CKey tweaked_key;
+                if (!key.ComputeTapTweakedKey(tweaked_key, &merkle_root)) {
+                    LogPrint(BCLog::POS, "CreateCoinStake : failed to compute tweaked key for Taproot output %s\n", HexStr(scriptPubKeyKernel));
+                    return false;
+                }
+                key = tweaked_key;
             }
         } else if (whichType == TxoutType::PUBKEY) {
             CPubKey pubKey(vSolutions[0]);

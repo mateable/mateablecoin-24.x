@@ -145,6 +145,13 @@ public:
      */
     bool SignSchnorr(const uint256& hash, Span<unsigned char> sig, const uint256* merkle_root, const uint256& aux) const;
 
+    /**
+     * Compute the Taproot-tweaked private key corresponding to this internal key.
+     * The tweak is computed as H_TapTweak(pubkey || *merkle_root) per BIP341.
+     * Returns a new CKey containing the tweaked secret key.
+     */
+    bool ComputeTapTweakedKey(CKey& tweaked_key, const uint256* merkle_root) const;
+
     //! Derive BIP32 child key.
     [[nodiscard]] bool Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 

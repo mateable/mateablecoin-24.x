@@ -300,6 +300,25 @@ bool CKey::SignSchnorr(const uint256& hash, Span<unsigned char> sig, const uint2
     return ret;
 }
 
+bool CKey::ComputeTapTweakedKey(CKey& tweaked_key, const uint256* merkle_root) const
+{
+    secp256k1_keypair keypair;
+    if (!secp256k1_keypair_create(secp256k1_context_sign, &keypair, begin())) return false;
+    secp256k1_xonly_pubkey pubkey;
+    if (!secp256k1_keypair_xonly_pub(secp256k1_context_sign, &pubkey, nullptr, &keypair)) return false;
+    unsigned char pubkey_bytes[32];
+    if (!secp256k1_xonly_pubkey_serialize(secp256k1_context_sign, pubkey_bytes, &pubkey)) return false;
+    uint256 tweak = XOnlyPubKey(pubkey_bytes).ComputeTapTweakHash(
+        (merkle_root && !merkle_root->IsNull()) ? merkle_root : nullptr);
+    if (!secp256k1_keypair_xonly_tweak_add(GetVerifyContext(), &keypair, tweak.data())) return false;
+    unsigned char tweaked_secret[32];
+    if (!secp256k1_keypair_sec(secp256k1_context_sign, tweaked_secret, &keypair)) return false;
+    tweaked_key.Set(tweaked_secret, tweaked_secret + 32, true);
+    memory_cleanse(tweaked_secret, 32);
+    memory_cleanse(&keypair, sizeof(keypair));
+    return tweaked_key.IsValid();
+}
+
 bool CKey::Load(const CPrivKey &seckey, const CPubKey &vchPubKey, bool fSkipCheck=false) {
     if (!ec_seckey_import_der(secp256k1_context_sign, (unsigned char*)begin(), seckey.data(), seckey.size()))
         return false;

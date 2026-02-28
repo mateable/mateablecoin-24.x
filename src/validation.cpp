@@ -3432,6 +3432,30 @@ bool CheckBlockSignature(const CBlock& block)
         if (!pubkey.IsValid()) return false;
         if (block.vchBlockSig.empty()) return false;
         return pubkey.Verify(block.GetHash(), block.vchBlockSig);
+    } else if (whichType == TxoutType::WITNESS_V1_TAPROOT) {
+        // For Taproot, the output contains a 32-byte x-only (tweaked) pubkey.
+        // The block was signed with ECDSA using the tweaked private key, so we
+        // reconstruct both possible compressed pubkeys (even/odd parity)
+        // and verify against each.
+        if (vSolutions[0].size() != 32) return false;
+        if (block.vchBlockSig.empty()) return false;
+
+        unsigned char fullkey[33];
+        std::copy(vSolutions[0].begin(), vSolutions[0].end(), fullkey + 1);
+
+        // Try even parity (0x02 prefix)
+        fullkey[0] = 0x02;
+        CPubKey pubkeyEven(fullkey, fullkey + 33);
+        if (pubkeyEven.IsValid() && pubkeyEven.Verify(block.GetHash(), block.vchBlockSig))
+            return true;
+
+        // Try odd parity (0x03 prefix)
+        fullkey[0] = 0x03;
+        CPubKey pubkeyOdd(fullkey, fullkey + 33);
+        if (pubkeyOdd.IsValid() && pubkeyOdd.Verify(block.GetHash(), block.vchBlockSig))
+            return true;
+
+        return false;
     } else if (whichType == TxoutType::SCRIPTHASH || whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
         CScript inner_script;
         CTxDestination inner_dest;

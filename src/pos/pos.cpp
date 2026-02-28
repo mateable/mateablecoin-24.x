@@ -232,9 +232,23 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
     const CScript& scriptSig = txin.scriptSig;
     const CScriptWitness* witness = &txin.scriptWitness;
     ScriptError serror = SCRIPT_ERR_OK;
-    std::vector<uint8_t> vchAmount(8);
 
-    if (!VerifyScript(scriptSig, kernelPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&tx, 0, amount, MissingDataBehavior::FAIL), &serror)) {
+    // Build PrecomputedTransactionData with all spent outputs (required for Taproot)
+    std::vector<CTxOut> spent_outputs;
+    spent_outputs.reserve(tx.vin.size());
+    spent_outputs.push_back(coin.out); // input 0 (kernel) already fetched
+    for (size_t i = 1; i < tx.vin.size(); i++) {
+        Coin c;
+        if (!chain_state.CoinsTip().GetCoin(tx.vin[i].prevout, c) || c.IsSpent()) {
+            LogPrintf("ERROR: %s: failed to fetch coin for input %d of coinstake %s\n", __func__, i, tx.GetHash().ToString());
+            return false;
+        }
+        spent_outputs.push_back(c.out);
+    }
+    PrecomputedTransactionData txdata;
+    txdata.Init(tx, std::move(spent_outputs), true);
+
+    if (!VerifyScript(scriptSig, kernelPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&tx, 0, amount, txdata, MissingDataBehavior::FAIL), &serror)) {
         LogPrintf("ERROR: %s: verify-script-failed, txn %s, reason %s\n", __func__, tx.GetHash().ToString(), ScriptErrorString(serror));
         return false;
     }
