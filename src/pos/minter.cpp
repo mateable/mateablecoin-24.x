@@ -178,8 +178,7 @@ void WakeThreadStakeMiner(wallet::CWallet* pwallet)
         pwallet->nLastCoinStakeSearchTime = 0;
         LogPrint(BCLog::POS, "WakeThreadStakeMiner: wallet %s, thread %d\n", pwallet->GetName(), nStakeThread);
     }
-    StakeThread* t = vStakeThreads[nStakeThread];
-    t->m_thread_interrupt();
+    vStakeThreads[nStakeThread]->m_thread_interrupt();
 }
 
 void WakeAllThreadStakeMiner()
@@ -198,9 +197,8 @@ bool ThreadStakeMinerStopped()
 static inline void condWaitFor(size_t nThreadID, int ms)
 {
     assert(vStakeThreads.size() > nThreadID);
-    StakeThread* t = vStakeThreads[nThreadID];
-    t->m_thread_interrupt.reset();
-    t->m_thread_interrupt.sleep_for(std::chrono::milliseconds(ms));
+    vStakeThreads[nThreadID]->m_thread_interrupt.reset();
+    vStakeThreads[nThreadID]->m_thread_interrupt.sleep_for(std::chrono::milliseconds(ms));
 }
 
 bool SignBlockWithKey(CBlock& block, wallet::CWallet* wallet, const CKey& key)
