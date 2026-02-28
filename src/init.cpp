@@ -1816,12 +1816,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 12.5: start staking
 #ifdef ENABLE_WALLET
-    size_t num_wallets = 0;
     if (node.wallet_loader && node.wallet_loader->context()) {
-        auto vpwallets = GetWallets(*node.wallet_loader->context());
-        num_wallets = vpwallets.size();
-    }
-    if (num_wallets > 0) {
         stakeman = std::thread(&stakeman_handler, std::ref(*node.wallet_loader->context()), std::ref(chainman), node.connman.get());
         stakeman.detach();
     }
