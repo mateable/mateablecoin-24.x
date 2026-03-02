@@ -20,6 +20,8 @@
 #include <crypto/balloon/balloon.h>
 
 #include <stdlib.h>
+#include <string.h>
+#include <openssl/opensslv.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -46,7 +48,14 @@ void bitstream_init(struct bitstream* b)
 {
     SHA256_Init(&b->c);
     b->initialized = false;
+    
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     b->ctx = EVP_CIPHER_CTX_new();
+    if (!b->ctx) abort();
+#else
+    EVP_CIPHER_CTX_init(&b->ctx);
+#endif
+
     b->zeros = (uint8_t*)malloc(BITSTREAM_BUF_SIZE * sizeof(uint8_t));
     if (!b->zeros) abort();
     memset(b->zeros, 0, BITSTREAM_BUF_SIZE);
@@ -56,9 +65,16 @@ void bitstream_free(struct bitstream* b)
 {
     uint8_t out[AES_BLOCK_SIZE];
     int outl;
+    
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     EVP_EncryptFinal(b->ctx, out, &outl);
     EVP_CIPHER_CTX_reset(b->ctx);
     EVP_CIPHER_CTX_free(b->ctx);
+#else
+    EVP_EncryptFinal(&b->ctx, out, &outl);
+    EVP_CIPHER_CTX_cleanup(&b->ctx);
+#endif
+
     free(b->zeros);
 }
 
@@ -73,8 +89,15 @@ void bitstream_seed_finalize(struct bitstream* b)
     SHA256_Final(key_bytes, &b->c);
     uint8_t iv[AES_BLOCK_SIZE];
     memset(iv, 0, AES_BLOCK_SIZE);
+    
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     EVP_CIPHER_CTX_set_padding(b->ctx, 1);
     EVP_EncryptInit(b->ctx, EVP_aes_128_ctr(), key_bytes, iv);
+#else
+    EVP_CIPHER_CTX_set_padding(&b->ctx, 1);
+    EVP_EncryptInit(&b->ctx, EVP_aes_128_ctr(), key_bytes, iv);
+#endif
+
     b->initialized = true;
 }
 
@@ -118,7 +141,12 @@ void* block_last(const struct hash_state* s)
 static void encrypt_partial(struct bitstream* b, void* outp, int to_encrypt)
 {
     int encl;
+    
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     EVP_EncryptUpdate(b->ctx, (unsigned char*)outp, &encl, b->zeros, to_encrypt);
+#else
+    EVP_EncryptUpdate(&b->ctx, (unsigned char*)outp, &encl, b->zeros, to_encrypt);
+#endif
 }
 
 void bitstream_fill_buffer(struct bitstream* b, void* out, size_t outlen)
