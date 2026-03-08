@@ -121,6 +121,8 @@ namespace BCLog {
 
         fs::path m_file_path;
         std::atomic<bool> m_reopen_file{false};
+        std::atomic<uint64_t> m_max_log_file_size{10 * 1000000}; //!< Max debug.log size in bytes (default 10MB, 0 = unlimited)
+        uint64_t m_log_write_counter GUARDED_BY(m_cs){0}; //!< Counter to throttle file size checks
 
         /** Send a string to the log output */
         void LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, int source_line, BCLog::LogFlags category, BCLog::Level level);

@@ -451,6 +451,23 @@ void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& loggi
             }
         }
         FileWriteStr(str_prefixed, m_fileout);
+
+        // Periodically check file size and shrink if over max
+        // Skip trimming when debug categories are active (user is debugging)
+        uint64_t max_size = m_max_log_file_size.load();
+        if (max_size > 0 && m_categories.load() == BCLog::NONE && ++m_log_write_counter >= 1000) {
+            m_log_write_counter = 0;
+            long file_pos = ftell(m_fileout);
+            if (file_pos > 0 && static_cast<uint64_t>(file_pos) > max_size) {
+                fclose(m_fileout);
+                m_fileout = nullptr;
+                ShrinkDebugFile();
+                m_fileout = fsbridge::fopen(m_file_path, "a");
+                if (m_fileout) {
+                    setbuf(m_fileout, nullptr); // unbuffered
+                }
+            }
+        }
     }
 }
 

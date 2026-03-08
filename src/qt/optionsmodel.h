@@ -75,6 +75,7 @@ public:
         Server,                 // bool
         EnablePSBTControls,     // bool
         MaxStakingValue,
+        MaxDebugLogSize,        // int (MB, 0 = unlimited)
         OptionIDRowCount,
     };
 

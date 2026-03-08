@@ -21,7 +21,10 @@
 #include <txdb.h> // for -dbcache defaults
 #include <util/system.h>
 
+#include <logging.h>
+
 #include <chrono>
+#include <filesystem>
 
 #include <QDataWidgetMapper>
 #include <QDir>
@@ -199,6 +202,22 @@ void OptionsDialog::setModel(OptionsModel *_model)
         mapper->toFirst();
 
         updateDefaultProxyNets();
+
+        // Show current debug.log file size
+        try {
+            auto log_path = LogInstance().m_file_path;
+            if (!log_path.empty() && std::filesystem::exists(log_path)) {
+                auto size = std::filesystem::file_size(log_path);
+                double size_mb = static_cast<double>(size) / 1000000.0;
+                if (size_mb >= 1000.0) {
+                    ui->debugLogSizeLabel->setText(tr("Current: %1 GB").arg(QString::number(size_mb / 1000.0, 'f', 2)));
+                } else {
+                    ui->debugLogSizeLabel->setText(tr("Current: %1 MB").arg(QString::number(size_mb, 'f', 1)));
+                }
+            }
+        } catch (...) {
+            ui->debugLogSizeLabel->setText(tr("Current size: unknown"));
+        }
     }
 
     /* warn when one of the following settings changes by user action (placed here so init via mapper doesn't trigger them) */
@@ -241,6 +260,8 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->databaseCache, OptionsModel::DatabaseCache);
     mapper->addMapping(ui->prune, OptionsModel::Prune);
     mapper->addMapping(ui->pruneSize, OptionsModel::PruneSize);
+
+    mapper->addMapping(ui->maxDebugLogSize, OptionsModel::MaxDebugLogSize);
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);

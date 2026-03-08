@@ -13,6 +13,7 @@
 #include <qt/guiutil.h>
 
 #include <interfaces/node.h>
+#include <logging.h>
 #include <mapport.h>
 #include <net.h>
 #include <netbase.h>
@@ -55,6 +56,7 @@ static const char* SettingName(OptionsModel::OptionID option)
     case OptionsModel::ProxyUseTor: return "onion";
     case OptionsModel::Language: return "lang";
     case OptionsModel::MaxStakingValue: return "maxstakingvalue";
+    case OptionsModel::MaxDebugLogSize: return "maxdebugfilesize";
     default: throw std::logic_error(strprintf("GUI option %i has no corresponding node setting.", option));
     }
 }
@@ -426,6 +428,8 @@ QVariant OptionsModel::getOption(OptionID option) const
         return settings.value("enable_psbt_controls");
     case MaxStakingValue:
         return qlonglong(SettingToInt(setting(), 0));
+    case MaxDebugLogSize:
+        return qlonglong(SettingToInt(setting(), 10));
     case Prune:
         return PruneEnabled(setting());
     case PruneSize:
@@ -584,6 +588,14 @@ bool OptionsModel::setOption(OptionID option, const QVariant& value)
     case MaxStakingValue:
         if (changed()) {
             update(static_cast<int64_t>(value.toLongLong()));
+        }
+        break;
+    case MaxDebugLogSize:
+        if (changed()) {
+            update(static_cast<int64_t>(value.toLongLong()));
+            // Apply immediately to running logger
+            int64_t max_mb = value.toLongLong();
+            LogInstance().m_max_log_file_size = max_mb > 0 ? static_cast<uint64_t>(max_mb) * 1000000 : 0;
         }
         break;
     case Prune:
