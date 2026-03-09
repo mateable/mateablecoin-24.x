@@ -431,15 +431,17 @@ RPCHelpMan settxfee()
     CFeeRate max_tx_fee_rate(pwallet->m_default_max_tx_fee, 1000);
     if (tx_fee_rate == CFeeRate(0)) {
         // automatic selection
+        pwallet->m_pay_tx_fee = std::nullopt;
     } else if (tx_fee_rate < pwallet->chain().relayMinFee()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("txfee cannot be less than min relay tx fee (%s)", pwallet->chain().relayMinFee().ToString()));
     } else if (tx_fee_rate < pwallet->m_min_fee) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("txfee cannot be less than wallet min fee (%s)", pwallet->m_min_fee.ToString()));
     } else if (tx_fee_rate > max_tx_fee_rate) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("txfee cannot be more than wallet max tx fee (%s)", max_tx_fee_rate.ToString()));
+    } else {
+        pwallet->m_pay_tx_fee = tx_fee_rate;
     }
 
-    pwallet->m_pay_tx_fee = tx_fee_rate;
     return true;
 },
     };

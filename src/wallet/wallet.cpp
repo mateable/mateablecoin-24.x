@@ -3066,7 +3066,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
         walletInstance->m_pay_tx_fee = CFeeRate{pay_tx_fee.value(), 1000};
 
-        if (chain && walletInstance->m_pay_tx_fee < chain->relayMinFee()) {
+        if (chain && *walletInstance->m_pay_tx_fee < chain->relayMinFee()) {
             error = strprintf(_("Invalid amount for -paytxfee=<amount>: '%s' (must be at least %s)"),
                 args.GetArg("-paytxfee", ""), chain->relayMinFee().ToString());
             return nullptr;

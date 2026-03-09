@@ -42,8 +42,8 @@ CFeeRate GetMinimumFeeRate(const CWallet& wallet, const CCoinControl& coin_contr
         // Allow to override automatic min/max check over coin control instance
         if (coin_control.fOverrideFeeRate) return feerate_needed;
     }
-    else if (!coin_control.m_confirm_target && wallet.m_pay_tx_fee != CFeeRate(0)) { // 3. TODO: remove magic value of 0 for wallet member m_pay_tx_fee
-        feerate_needed = wallet.m_pay_tx_fee;
+    else if (!coin_control.m_confirm_target && wallet.m_pay_tx_fee) { // 3.
+        feerate_needed = *wallet.m_pay_tx_fee;
         if (feeCalc) feeCalc->reason = FeeReason::PAYTXFEE;
     }
     else { // 2. or 4.
