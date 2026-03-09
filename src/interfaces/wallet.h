@@ -262,6 +262,9 @@ public:
     // Return whether private keys enabled.
     virtual bool privateKeysDisabled() = 0;
 
+    // Return whether SegWit is active based on block height
+    virtual bool isSegwitActive() = 0;
+
     // Return whether the wallet contains a Taproot scriptPubKeyMan
     virtual bool taprootEnabled() = 0;
 

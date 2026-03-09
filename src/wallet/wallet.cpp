@@ -2466,13 +2466,22 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
 util::Result<CTxDestination> CWallet::GetNewDestination(const OutputType type, const std::string label)
 {
     LOCK(cs_wallet);
-    auto spk_man = GetScriptPubKeyMan(type, false /* internal */);
+    OutputType actual_type = type;
+
+    // Force Legacy address if below SegWit/Taproot activation height (4,000,000)
+    if (GetLastBlockHeight() < Params().GetConsensus().SegwitHeight) {
+        if (actual_type == OutputType::P2SH_SEGWIT || actual_type == OutputType::BECH32 || actual_type == OutputType::BECH32M) {
+            actual_type = OutputType::LEGACY;
+        }
+    }
+
+    auto spk_man = GetScriptPubKeyMan(actual_type, false /* internal */);
     if (!spk_man) {
-        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(type))};
+        return util::Error{strprintf(_("Error: No %s addresses available."), FormatOutputType(actual_type))};
     }
 
     spk_man->TopUp();
-    auto op_dest = spk_man->GetNewDestination(type);
+    auto op_dest = spk_man->GetNewDestination(actual_type);
     if (op_dest) {
         SetAddressBook(*op_dest, label, "receive");
     }
@@ -2483,8 +2492,16 @@ util::Result<CTxDestination> CWallet::GetNewDestination(const OutputType type, c
 util::Result<CTxDestination> CWallet::GetNewChangeDestination(const OutputType type)
 {
     LOCK(cs_wallet);
+    OutputType actual_type = type;
 
-    ReserveDestination reservedest(this, type);
+    // Force Legacy change address if below SegWit/Taproot activation height
+    if (GetLastBlockHeight() < Params().GetConsensus().SegwitHeight) {
+        if (actual_type == OutputType::P2SH_SEGWIT || actual_type == OutputType::BECH32 || actual_type == OutputType::BECH32M) {
+            actual_type = OutputType::LEGACY;
+        }
+    }
+
+    ReserveDestination reservedest(this, actual_type);
     auto op_dest = reservedest.GetReservedDestination(true);
     if (op_dest) reservedest.KeepDestination();
 
