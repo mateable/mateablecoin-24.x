@@ -381,6 +381,14 @@ CAmount GetSpendableBalance(const CWallet& wallet)
     return totalBalance.m_mine_trusted;
 }
 
+CAmount GetStakingBalance(const CWallet& wallet)
+{
+    // Use min_depth = 1 to allow staking from coins with at least one confirmation,
+    // regardless of coinbase maturity.
+    Balance totalBalance = GetBalance(wallet, 1, false);
+    return totalBalance.m_mine_trusted;
+}
+
 std::map<CTxDestination, CAmount> GetAddressBalances(const CWallet& wallet)
 {
     std::map<CTxDestination, CAmount> balances;

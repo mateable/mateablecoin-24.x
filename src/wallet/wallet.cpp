@@ -1245,12 +1245,17 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 void CWallet::AbandonOrphanedCoinstakes()
 {
     LOCK(cs_wallet);
+    int64_t nNow = GetTime();
     for (auto& item : mapWallet) {
         const uint256& wtxid = item.first;
         CWalletTx& wtx = item.second;
         assert(wtx.GetHash() == wtxid);
         if (GetTxDepthInMainChain(wtx) == 0 && !wtx.isAbandoned() && wtx.IsCoinStake()) {
-            AbandonTransaction(wtxid);
+            // Only abandon if it's older than 5 minutes to prevent race conditions
+            // during block connection.
+            if (nNow - wtx.nTimeReceived > 300) {
+                AbandonTransaction(wtxid);
+            }
         }
     }
 }

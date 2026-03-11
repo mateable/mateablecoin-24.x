@@ -166,7 +166,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
         const uint256& wtxid = entry.first;
         const CWalletTx& wtx = entry.second;
 
-        if (wallet.IsTxImmatureCoinBase(wtx))
+        if (only_spendable && wallet.IsTxImmatureCoinBase(wtx))
             continue;
 
         int nDepth = wallet.GetTxDepthInMainChain(wtx);

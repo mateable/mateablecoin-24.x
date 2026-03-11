@@ -250,7 +250,11 @@ bool SignBlock(CBlock& block, CBlockIndex* pindexPrev, wallet::CWallet* wallet, 
             block.vtx.insert(block.vtx.begin() + 1, MakeTransactionRef(txCoinStake));
 
             //Needs this code so there is no error for Merkle
-            node::RegenerateCommitments(block, chain_state.m_chainman);
+            if (nHeight >= Params().GetConsensus().SegwitHeight) {
+                node::RegenerateCommitments(block, chain_state.m_chainman);
+            } else {
+                block.hashMerkleRoot = BlockMerkleRoot(block);
+            }
 
             uint256 blockhash = block.GetHash();
             LogPrint(BCLog::POS, "%s: signing blockhash %s\n", __func__, blockhash.ToString());
@@ -285,7 +289,6 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
 
     const bool stake_thread_ignore_peers = gArgs.GetBoolArg("-stakethreadignorepeers", false);
     const size_t stake_thread_cond_delay_ms = gArgs.GetIntArg("-stakethreadconddelayms", 60000);
-    const size_t min_stake_cooldown_ms = 30000; // Minimum 30 seconds after successful stake
 
     LogPrint(BCLog::POS, "Stake thread conditional delay set to %d.\n", stake_thread_cond_delay_ms);
     LogPrint(BCLog::POS, "Stake thread is %s peers.\n", stake_thread_ignore_peers ? "ignoring" : "not ignoring");
@@ -400,7 +403,7 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
                 }
             }
 
-            CAmount balance = GetSpendableBalance(*pwallet);
+            CAmount balance = wallet::GetStakingBalance(*pwallet);
             CAmount reserve_balance = pwallet->nReserveBalance;
 
             if (balance <= reserve_balance) {
@@ -435,7 +438,7 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
 
                     // Update wallet search time to prevent immediate retry
                     LOCK(pwallet->cs_wallet);
-                    pwallet->nLastCoinStakeSearchTime = nSearchTime + (min_stake_cooldown_ms / 1000);
+                    pwallet->nLastCoinStakeSearchTime = nSearchTime;
                     break;  // FIXED: Exit wallet loop after successful stake
                 }
             } else {
@@ -452,12 +455,6 @@ void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWal
             }
         }
 
-        // Enforce minimum cooldown after successful stake
-        if (staked_successfully) {
-            nWaitFor = std::max(nWaitFor, min_stake_cooldown_ms);
-            LogPrint(BCLog::POS, "%s: Enforcing %d ms cooldown after successful stake\n", __func__, nWaitFor);
-        }
-
         condWaitFor(nThreadID, nWaitFor);
     }
 }
@@ -470,7 +467,7 @@ bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::s
     std::vector<wallet::COutput> vCoins;
     {
         LOCK(wallet->cs_wallet);
-        auto res = wallet::AvailableCoins(*wallet);
+        auto res = wallet::AvailableCoins(*wallet, nullptr, std::nullopt, 1, MAX_MONEY, MAX_MONEY, 0, true);
         for (auto entry : res.All()) {
             vCoins.push_back(entry);
         }
@@ -833,6 +830,14 @@ bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned 
         std::map<int, bilingual_str> input_errors;
         if (!wallet->SignTransaction(txNew, coins_map, SIGHASH_ALL, input_errors)) {
             return error("%s: SignTransaction failed.", __func__);
+        }
+
+        // Before SegWit activation, ensure no witness data is included.
+        // This prevents "premature witness" rejection by old nodes.
+        if (nBlockHeight < Params().GetConsensus().SegwitHeight) {
+            for (auto& txin : txNew.vin) {
+                txin.scriptWitness.SetNull();
+            }
         }
     }
 
