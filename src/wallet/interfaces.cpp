@@ -27,6 +27,7 @@
 #include <wallet/rpc/wallet.h>
 #include <wallet/spend.h>
 #include <wallet/wallet.h>
+#include <chainparams.h>
 
 #include <memory>
 #include <string>
@@ -406,6 +407,10 @@ public:
     {
         return GetAvailableBalance(*m_wallet, &coin_control);
     }
+    CAmount getStakingRewards() const override
+    {
+    return m_wallet->GetStakingRewards();
+    }
     isminetype txinIsMine(const CTxIn& txin) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -474,7 +479,12 @@ public:
     bool canGetAddresses() override { return m_wallet->CanGetAddresses(); }
     bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }
     bool privateKeysDisabled() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS); }
+    bool isSegwitActive() override {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetLastBlockHeight() >= Params().GetConsensus().SegwitHeight;
+    }
     bool taprootEnabled() override {
+        if (!isSegwitActive()) return false;
         if (m_wallet->IsLegacy()) return false;
         auto spk_man = m_wallet->GetScriptPubKeyMan(OutputType::BECH32M, /*internal=*/false);
         return spk_man != nullptr;

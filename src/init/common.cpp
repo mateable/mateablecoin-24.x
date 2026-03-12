@@ -40,6 +40,7 @@ void AddLoggingArgs(ArgsManager& argsman)
     argsman.AddArg("-logtimemicros", strprintf("Add microsecond precision to debug timestamps (default: %u)", DEFAULT_LOGTIMEMICROS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-printtoconsole", "Send trace/debug info to console (default: 1 when no -daemon. To disable logging to file, set -nodebuglogfile)", ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-shrinkdebugfile", "Shrink debug.log file on client startup (default: 1 when no -debug)", ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-maxdebugfilesize=<n>", strprintf("Limit debug.log file size to <n> MB during runtime. The log is automatically trimmed when it exceeds this size, keeping the most recent entries. (default: %d, 0 = unlimited)", 10), ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
 }
 
 void SetLoggingOptions(const ArgsManager& args)
@@ -55,6 +56,9 @@ void SetLoggingOptions(const ArgsManager& args)
     LogInstance().m_log_sourcelocations = args.GetBoolArg("-logsourcelocations", DEFAULT_LOGSOURCELOCATIONS);
 
     fLogIPs = args.GetBoolArg("-logips", DEFAULT_LOGIPS);
+
+    int64_t max_log_mb = args.GetIntArg("-maxdebugfilesize", 10);
+    LogInstance().m_max_log_file_size = max_log_mb > 0 ? static_cast<uint64_t>(max_log_mb) * 1000000 : 0;
 }
 
 void SetLoggingLevel(const ArgsManager& args)

@@ -46,6 +46,29 @@ expose RPC ports to the public internet.
 | P2P      |   6969 |   
 | RPC      |   6966 |  
 
+## Block Rewards
+
+MateableCoin has a tiered block reward schedule starting at 214 MTBC with a
+perpetual tail emission of 1 MTBC to keep miners incentivized indefinitely.
+
+See the full [Block Reward Schedule](doc/pool-mining-guide.md#block-reward-schedule) for details.
+
+## Pool Mining
+
+Mateablecoin supports multi-algorithm mining with 5 PoW algorithms: scrypt,
+yescrypt, whirlpool, ghostrider, and balloon. A single node and wallet can
+mine all algorithms.
+
+For pool operators, see the [Pool Mining Guide](doc/pool-mining-guide.md) for
+setup instructions, `getblocktemplate` usage, and multi-algo configuration.
+
+## SegWit/Taproot Fork
+
+SegWit, Taproot, and CSV activate at **block 4,000,000**. This is a mandatory
+upgrade. All nodes and pools must update to v24.x before this block. See the
+[Pool Mining Guide](doc/pool-mining-guide.md) for details on how this affects
+mining.
+
 ## Ongoing development - Moon plan 🌒
 
 MateableCoin is an open source and community driven software. The development

@@ -5,11 +5,13 @@
 #ifndef BITCOIN_QT_TRANSACTIONRECORD_H
 #define BITCOIN_QT_TRANSACTIONRECORD_H
 
-#include <consensus/amount.h>
+#include <interfaces/wallet.h>
 #include <uint256.h>
 
 #include <QList>
 #include <QString>
+
+class CWallet;
 
 namespace interfaces {
 class Node;
@@ -18,45 +20,58 @@ struct WalletTx;
 struct WalletTxStatus;
 }
 
-/** UI model for transaction status. The transaction status is the part of a transaction that will change over time.
+/** UI model for transaction status. The transaction status is the part of a transaction that may change over time.
  */
-struct TransactionStatus {
+struct TransactionStatus
+{
+    TransactionStatus():
+        status(Unconfirmed),
+        depth(0),
+        matures_in(0),
+        needsUpdate(true)
+    { }
+
+    //! Transaction status in enum
     enum Status {
-        Confirmed,          /**< Have 6 or more confirmations (normal tx) or fully mature (mined tx) **/
-        /// Normal (sent/received) transactions
-        Unconfirmed,        /**< Not yet mined into a block **/
-        Confirming,         /**< Confirmed, but waiting for the recommended number of confirmations **/
-        Conflicted,         /**< Conflicts with other transaction or mempool **/
-        Abandoned,          /**< Abandoned from the wallet **/
-        /// Generated (mined) transactions
-        Immature,           /**< Mined but waiting for maturity */
-        NotAccepted         /**< Mined but not accepted */
+        Unconfirmed,
+        Abandoned,
+        Confirming,
+        Confirmed,
+        ConfirmedImmature,
+        Conflicted,
+        Immature,
+        NotAccepted
     };
 
-    /// Transaction counts towards available balance
-    bool countsForBalance{false};
-    /// Sorting key based on status
-    std::string sortKey;
+    Status status;
+    //! Depth of transaction in blockchain
+    int depth;
+    //! For coinbase transactions, number of blocks left before maturity
+    int matures_in;
 
-    /** @name Generated (mined) transactions
-       @{*/
-    int matures_in{0};
-    /**@}*/
+    //! Number of confirmations required for transaction to be considered mature
+    int required_confirmations;
 
-    /** @name Reported status
-       @{*/
-    Status status{Unconfirmed};
-    qint64 depth{0};
-    /**@}*/
+    //! Whether this transaction counts for balance
+    bool countsForBalance;
 
-    /** Current block hash (to know whether cached status is still valid) */
-    uint256 m_cur_block_hash{};
+    //! Last block hash this status was updated against
+    uint256 cur_block_hash;
 
-    bool needsUpdate{false};
+    bool needsUpdate;
+
+    /**
+     * Determine whether this transaction status is up-to-date.
+     *
+     * @param[in] cur_block_hash The hash of the best block in the chain.
+     */
+    bool statusUpdateNeeded(const uint256& cur_block_hash) const
+    {
+        return needsUpdate || this->cur_block_hash != cur_block_hash;
+    }
 };
 
-/** UI model for a transaction. A core transaction can be represented by multiple UI transactions if it has
-    multiple outputs.
+/** UI model for a transaction. A core transaction can be represented by multiple UI transactions (one for each payment within the transaction).
  */
 class TransactionRecord
 {
@@ -65,12 +80,12 @@ public:
     {
         Other,
         Generated,
+        Staked,
         SendToAddress,
         SendToOther,
         RecvWithAddress,
         RecvFromOther,
-        SendToSelf,
-        Staked
+        SendToSelf
     };
 
     /** Number of confirmation recommended for accepting a transaction */
@@ -88,27 +103,25 @@ public:
     }
 
     TransactionRecord(uint256 _hash, qint64 _time,
-                Type _type, const std::string &_address,
-                const CAmount& _debit, const CAmount& _credit):
-            hash(_hash), time(_time), type(_type), address(_address), debit(_debit), credit(_credit),
-            idx(0)
+                    Type _type, const std::string& _address,
+                    const CAmount& _debit, const CAmount& _credit):
+            hash(_hash), time(_time), type(_type), address(_address), debit(_debit),
+            credit(_credit), idx(0)
     {
     }
 
     /** Decompose CWallet transaction to model transaction records.
      */
-    static bool showTransaction();
     static QList<TransactionRecord> decomposeTransaction(const interfaces::WalletTx& wtx);
 
-    /** @name Immutable transaction attributes
-      @{*/
+    /** @name Immutable transaction data
+        @*/
     uint256 hash;
     qint64 time;
     Type type;
     std::string address;
     CAmount debit;
     CAmount credit;
-    /**@}*/
 
     /** Subtransaction index, for sort key */
     int idx;
@@ -116,22 +129,72 @@ public:
     /** Status: can change with block chain update */
     TransactionStatus status;
 
-    /** Whether the transaction was sent/received with a watch-only address */
-    bool involvesWatchAddress;
+    /** Whether the transaction was sent/received to/from a watch-only address. */
+    bool involvesWatchAddress = false;
 
-    /** Return the unique identifier for this transaction (part) */
+    /** Return the unique identifier for this transaction record.
+     */
     QString getTxHash() const;
 
-    /** Return the output index of the subtransaction  */
+    /** Return the output index of the subtransaction.
+     */
     int getOutputIndex() const;
 
-    /** Update status from core wallet tx.
+    /** Update status from core wallet transaction.
      */
     void updateStatus(const interfaces::WalletTxStatus& wtx, const uint256& block_hash, int numBlocks, int64_t block_time);
 
-    /** Return whether a status update is needed.
+    /** Return whether a transaction is abandoned.
      */
-    bool statusUpdateNeeded(const uint256& block_hash) const;
+    bool isAbandoned() const;
+
+    /** Return whether a transaction is confirmed.
+     */
+    bool isConfirmed() const;
+
+    /** Return whether we consider transaction status safe.
+     */
+    bool isStatusOk() const;
+
+    /** Return whether this transaction is part of a conflicted block.
+     */
+    bool isConflicted() const;
+
+    /** Return whether this transaction is immature.
+     */
+    bool isImmature() const;
+
+    /** Return whether transaction is a coinbase transaction.
+     */
+    bool isCoinBase() const;
+
+    /** Return whether transaction is a coinstake transaction.
+     */
+    bool isCoinStake() const;
+
+    /** Send computed status to UI.
+     */
+    void showStatus(bool showTransaction, bool mature) const;
+
+    /** Return true if transaction can be abandoned.
+     */
+    bool canAbandon() const;
+
+    /** Update transaction status to abandoned.
+     */
+    bool abandon() const;
+
+    /** Return whether transaction has status in memory pool.
+     */
+    bool isInMempool() const;
+
+    /** Return whether transaction has status in chain.
+     */
+    bool isInMainChain() const;
+
+    /** Only show transactions that are not coinbase or coinstake.
+     */
+    static bool showTransaction();
 };
 
 #endif // BITCOIN_QT_TRANSACTIONRECORD_H

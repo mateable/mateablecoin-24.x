@@ -5,6 +5,7 @@
 #ifndef POS_STAKEMAN_H
 #define POS_STAKEMAN_H
 
+#include <atomic>
 #include <logging.h>
 #include <pos/minter.h>
 #include <shutdown.h>
@@ -15,7 +16,7 @@ struct WalletContext;
 class CWallet;
 } // namespace wallet
 
-extern bool fStakerRunning;
+extern std::atomic<bool> fStakerRunning;
 void stakeman_request_start();
 void stakeman_request_stop();
 void* stakeman_handler(wallet::WalletContext& wallet_context, ChainstateManager& chainman, CConnman* connman);

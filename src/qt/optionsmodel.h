@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <qt/bitcoinunits.h>
 #include <qt/guiconstants.h>
+#include <consensus/amount.h>
+
 
 #include <QAbstractListModel>
 
@@ -72,6 +74,8 @@ public:
         Listen,                 // bool
         Server,                 // bool
         EnablePSBTControls,     // bool
+        MaxStakingValue,
+        MaxDebugLogSize,        // int (MB, 0 = unlimited)
         OptionIDRowCount,
     };
 
@@ -87,6 +91,7 @@ public:
     void setDisplayUnit(const QVariant& new_unit);
 
     /* Explicit getters */
+    CAmount getMaxStakingValue() const;
     bool getShowTrayIcon() const { return m_show_tray_icon; }
     bool getMinimizeToTray() const { return fMinimizeToTray; }
     bool getMinimizeOnClose() const { return fMinimizeOnClose; }
@@ -99,6 +104,7 @@ public:
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
 
     /* Explicit setters */
+    void setMaxStakingValue(const CAmount& value);
     void SetPruneTargetGB(int prune_target_gb);
 
     /* Restart flag helper */

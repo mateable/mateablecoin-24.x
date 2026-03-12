@@ -197,13 +197,21 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         else
             strHTML += "(" + tr("not accepted") + ")";
         strHTML += "<br>";
+        nNet = nUnmatured - nDebit;
     }
     else if (nNet > 0)
     {
         //
         // Credit
         //
-        strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
+        int nRequiredDepth = std::min((int)COINBASE_MATURITY, numBlocks / 2);
+        if (wtx.is_coinstake && status.depth_in_main_chain > 0 && status.depth_in_main_chain < nRequiredDepth) {
+            int blocks_to_stake_maturity = nRequiredDepth - status.depth_in_main_chain;
+            strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + " (" + tr("matures for staking in %n more block(s)", "", blocks_to_stake_maturity) + ")<br>";
+            nNet = 0;
+        } else {
+            strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
+        }
     }
     else
     {
@@ -347,12 +355,27 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     if (node.getLogCategories() != BCLog::NONE)
     {
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
-        for (const CTxIn& txin : wtx.tx->vin)
-            if(wallet.txinIsMine(txin))
-                strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet.getDebit(txin, ISMINE_ALL)) + "<br>";
-        for (const CTxOut& txout : wtx.tx->vout)
-            if(wallet.txoutIsMine(txout))
-                strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet.getCredit(txout, ISMINE_ALL)) + "<br>";
+        if (wtx.is_coinstake) {
+            // For coinstake, explicitly show Staked Amount and Reward Amount
+            CAmount nStakedAmount = 0;
+            for (const CTxIn& txin : wtx.tx->vin) {
+                if (wallet.txinIsMine(txin)) {
+                    nStakedAmount += wallet.getDebit(txin, ISMINE_ALL);
+                }
+            }
+            CAmount nRewardAmount = wtx.tx->GetValueOut() - nStakedAmount;
+
+            strHTML += "<b>" + tr("Staked Amount") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nStakedAmount) + "<br>";
+            strHTML += "<b>" + tr("Reward Amount") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, nRewardAmount) + "<br>";
+        } else {
+            // Original logic for non-coinstake transactions
+            for (const CTxIn& txin : wtx.tx->vin)
+                if(wallet.txinIsMine(txin))
+                    strHTML += "<b>" + tr("Debit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, -wallet.getDebit(txin, ISMINE_ALL)) + "<br>";
+            for (const CTxOut& txout : wtx.tx->vout)
+                if(wallet.txoutIsMine(txout))
+                    strHTML += "<b>" + tr("Credit") + ":</b> " + BitcoinUnits::formatHtmlWithUnit(unit, wallet.getCredit(txout, ISMINE_ALL)) + "<br>";
+        }
 
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.tx->ToString(), true);

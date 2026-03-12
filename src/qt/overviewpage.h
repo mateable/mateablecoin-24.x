@@ -56,6 +56,7 @@ private:
     ClientModel *clientModel;
     WalletModel *walletModel;
     bool m_privacy{false};
+    double m_price{0.0};
 
     const PlatformStyle* m_platform_style;
 
@@ -63,6 +64,7 @@ private:
     std::unique_ptr<TransactionFilterProxy> filter;
 
 private Q_SLOTS:
+    void LimitTransactionRows();
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);

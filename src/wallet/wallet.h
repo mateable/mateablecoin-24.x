@@ -50,9 +50,9 @@ class CScript;
 enum class FeeEstimateMode;
 struct bilingual_str;
 
-void SetCoinBaseMaturity(int in);
-
 namespace wallet {
+extern int COINBASE_MATURITY_;
+void SetCoinBaseMaturity(int in);
 struct WalletContext;
 
 //! Explicitly unload and delete the wallet.
@@ -446,6 +446,7 @@ public:
      */
     int GetTxBlocksToMaturity(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool IsTxImmatureCoinBase(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool IsTxImmatureCoinStake(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! check whether we support the named feature
     bool CanSupportFeature(enum WalletFeature wf) const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { AssertLockHeld(cs_wallet); return IsFeatureSupported(nWalletVersion, wf); }
@@ -556,6 +557,9 @@ public:
     /** Sign the tx given the input coins and sighash. */
     bool SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const;
     SigningResult SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const;
+    SigningResult SignBlockHash(const uint256 &hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const;
+    SigningResult SignBlockHash(const uint256 &hash, const WitnessV0KeyHash& pkhash, std::vector<unsigned char>& vchSig) const;
+    SigningResult SignBlockHash(const uint256 &hash, const ScriptHash& pkhash, std::vector<unsigned char>& vchSig) const;
 
     /**
      * Fills out a PSBT with information from the wallet. Fills in UTXOs if we have
@@ -608,7 +612,7 @@ public:
     bool ImportPubKeys(const std::vector<CKeyID>& ordered_pubkeys, const std::map<CKeyID, CPubKey>& pubkey_map, const std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>>& key_origins, const bool add_keypool, const bool internal, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool ImportScriptPubKeys(const std::string& label, const std::set<CScript>& script_pub_keys, const bool have_solving_data, const bool apply_label, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    CFeeRate m_pay_tx_fee{DEFAULT_PAY_TX_FEE};
+    std::optional<CFeeRate> m_pay_tx_fee{CFeeRate{DEFAULT_PAY_TX_FEE}};
     unsigned int m_confirm_target{DEFAULT_TX_CONFIRM_TARGET};
     /** Allow Coin Selection to pick unconfirmed UTXOs that were sent from our own wallet if it
      * cannot fund the transaction otherwise. */
@@ -859,9 +863,12 @@ public:
     //! Get the SigningProvider for a script
     std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script) const;
     std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script, SignatureData& sigdata) const;
+    std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script, bool include_private) const;
 
     //! Get the wallet descriptors for a script.
     std::vector<WalletDescriptor> GetWalletDescriptors(const CScript& script) const;
+
+    void SetGreatestTxnDepth(int depth) const { m_greatest_txn_depth = depth; }
 
     //! Get the LegacyScriptPubKeyMan which is used for all types, internal, and external.
     LegacyScriptPubKeyMan* GetLegacyScriptPubKeyMan() const;
@@ -953,6 +960,7 @@ public:
     int nStakeLimitHeight = 0;
     std::atomic<bool> fStakingEnabled{true};
     CAmount nReserveBalance{0};
+    CAmount nMaxStakingValue{0};
     CAmount nStakeCombineThreshold;
     CAmount nStakeSplitThreshold;
     size_t nMaxStakeCombine = 3;
@@ -1040,7 +1048,7 @@ struct MigrationResult {
 };
 
 //! Do all steps to migrate a legacy wallet to a descriptor wallet
-util::Result<MigrationResult> MigrateLegacyToDescriptor(std::shared_ptr<CWallet>&& wallet, WalletContext& context);
+util::Result<MigrationResult> MigrateLegacyToDescriptor(const std::string& wallet_name, const SecureString& passphrase, WalletContext& context);
 } // namespace wallet
 
 #endif // BITCOIN_WALLET_WALLET_H

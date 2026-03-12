@@ -130,6 +130,11 @@ void WalletModel::checkBalanceChanged(const interfaces::WalletBalances& new_bala
     }
 }
 
+CAmount WalletModel::getStakingRewards() const
+{
+    return wallet().getStakingRewards();
+}
+
 interfaces::WalletBalances WalletModel::getCachedBalance() const
 {
     return m_cached_balances;

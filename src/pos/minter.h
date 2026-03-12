@@ -10,6 +10,7 @@
 #include <threadinterrupt.h>
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,7 +37,7 @@ public:
 
 typedef std::vector<unsigned char> valtype;
 
-extern std::vector<StakeThread*> vStakeThreads;
+extern std::vector<std::unique_ptr<StakeThread>> vStakeThreads;
 
 extern std::atomic<bool> fIsStaking;
 extern std::atomic<bool> fTryToSync;

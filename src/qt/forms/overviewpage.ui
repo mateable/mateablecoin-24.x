@@ -349,6 +349,59 @@
               </property>
              </widget>
             </item>
+<item row="6" column="0">
+ <widget class="QLabel" name="labelTotalUSDText">
+  <property name="text">
+   <string>Total USD:</string>
+  </property>
+ </widget>
+</item>
+<item row="6" column="1">
+ <widget class="QLabel" name="labelTotalUSD">
+  <property name="cursor">
+   <cursorShape>IBeamCursor</cursorShape>
+  </property>
+  <property name="toolTip">
+   <string>Your current total balance in USD</string>
+  </property>
+  <property name="text">
+   <string notr="true">$0.00</string>
+  </property>
+  <property name="alignment">
+   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+  </property>
+  <property name="textInteractionFlags">
+   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+  </property>
+ </widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="labelStakingRewardsText">
+  <property name="text">
+   <string>Staking Rewards:</string>
+  </property>
+ </widget>
+</item>
+<item row="7" column="1">
+ <widget class="QLabel" name="labelStakingRewards">
+  <property name="cursor">
+   <cursorShape>IBeamCursor</cursorShape>
+  </property>
+  <property name="toolTip">
+   <string>Total rewards earned from staking</string>
+  </property>
+  <property name="text">
+   <string notr="true">0.00000000 BTC</string>
+  </property>
+  <property name="alignment">
+   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+  </property>
+  <property name="textInteractionFlags">
+   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+  </property>
+ </widget>
+</item>
+
             <item row="0" column="2">
              <widget class="QLabel" name="labelWatchonly">
               <property name="text">
@@ -498,7 +551,7 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer">
+             <spacer name="horizontalSpacer_1">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>

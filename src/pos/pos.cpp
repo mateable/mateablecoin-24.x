@@ -190,6 +190,8 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
     // pindexPrev is the current tip, the block the new block will connect on to
     // nTime is the time of the new/next block
 
+    auto start_time = GetTimeMicros();
+
     //auto& pblocktree { chain_state.m_blockman.m_block_tree_db };
 
     if (!tx.IsCoinStake() || tx.vin.size() < 1) {
@@ -230,9 +232,23 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
     const CScript& scriptSig = txin.scriptSig;
     const CScriptWitness* witness = &txin.scriptWitness;
     ScriptError serror = SCRIPT_ERR_OK;
-    std::vector<uint8_t> vchAmount(8);
 
-    if (!VerifyScript(scriptSig, kernelPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&tx, 0, amount, MissingDataBehavior::FAIL), &serror)) {
+    // Build PrecomputedTransactionData with all spent outputs (required for Taproot)
+    std::vector<CTxOut> spent_outputs;
+    spent_outputs.reserve(tx.vin.size());
+    spent_outputs.push_back(coin.out); // input 0 (kernel) already fetched
+    for (size_t i = 1; i < tx.vin.size(); i++) {
+        Coin c;
+        if (!chain_state.CoinsTip().GetCoin(tx.vin[i].prevout, c) || c.IsSpent()) {
+            LogPrintf("ERROR: %s: failed to fetch coin for input %d of coinstake %s\n", __func__, i, tx.GetHash().ToString());
+            return false;
+        }
+        spent_outputs.push_back(c.out);
+    }
+    PrecomputedTransactionData txdata;
+    txdata.Init(tx, std::move(spent_outputs), true);
+
+    if (!VerifyScript(scriptSig, kernelPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&tx, 0, amount, txdata, MissingDataBehavior::FAIL), &serror)) {
         LogPrintf("ERROR: %s: verify-script-failed, txn %s, reason %s\n", __func__, tx.GetHash().ToString(), ScriptErrorString(serror));
         return false;
     }
@@ -241,6 +257,11 @@ bool CheckProofOfStake(Chainstate& chain_state, BlockValidationState& state, con
             amount, txin.prevout, nTime, hashProofOfStake, targetProofOfStake, LogAcceptCategory(BCLog::POS, BCLog::Level::Debug))) {
         LogPrintf("WARNING: %s: Check kernel failed on coinstake %s, hashProof=%s\n", __func__, tx.GetHash().ToString(), hashProofOfStake.ToString());
         return false;
+    }
+
+    auto duration = GetTimeMicros() - start_time;
+    if (duration > 50000) { // 50ms
+        LogPrintf("WARNING: %s took %d micros\n", __func__, duration);
     }
 
     return true;
@@ -314,7 +335,13 @@ bool CheckStakeUnique(const CBlock& block, bool fUpdate)
     LOCK(cs_main);
 
     uint256 blockHash = block.GetHash();
-    const COutPoint& kernel = block.vtx[0]->vin[0].prevout;
+    if (!block.IsProofOfStake()) {
+        return true;
+    }
+    if (block.vtx.size() < 2) {
+        return error("%s: proof-of-stake block has no coinstake", __func__);
+    }
+    const COutPoint& kernel = block.vtx[1]->vin[0].prevout;
 
     std::map<COutPoint, uint256>::const_iterator mi = mapStakeSeen.find(kernel);
     if (mi != mapStakeSeen.end()) {
@@ -331,7 +358,7 @@ bool CheckStakeUnique(const CBlock& block, bool fUpdate)
     while (listStakeSeen.size() > 1024) {
         const COutPoint& oldest = listStakeSeen.front();
         if (1 != mapStakeSeen.erase(oldest)) {
-            LogPrintf("%s: Warning: mapStakeSeen did not erase %s %n\n", __func__, oldest.hash.ToString(), oldest.n);
+            LogPrintf("%s: Warning: mapStakeSeen did not erase %s %u\n", __func__, oldest.hash.ToString(), oldest.n);
         }
         listStakeSeen.pop_front();
     }

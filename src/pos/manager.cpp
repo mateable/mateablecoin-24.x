@@ -4,9 +4,9 @@
 
 #include <pos/manager.h>
 
-bool fStakerRunning{false};
-bool fStakerRequestStart{false};
-bool fStakerRequestStop{false};
+std::atomic<bool> fStakerRunning{false};
+std::atomic<bool> fStakerRequestStart{false};
+std::atomic<bool> fStakerRequestStop{false};
 
 // signal stake thread start
 void stakeman_request_start() {
@@ -23,7 +23,7 @@ void *stakeman_handler(wallet::WalletContext& wallet_context, ChainstateManager&
 {
     while (!ShutdownRequested())
     {
-        while (fStakerRunning)
+        while (fStakerRunning && !ShutdownRequested())
         {
             fStakerRequestStart = false;
             if (fStakerRequestStop)
@@ -36,7 +36,7 @@ void *stakeman_handler(wallet::WalletContext& wallet_context, ChainstateManager&
             UninterruptibleSleep(std::chrono::milliseconds{250});
         }
 
-        while (!fStakerRunning)
+        while (!fStakerRunning && !ShutdownRequested())
         {
             fStakerRequestStop = false;
             if (fStakerRequestStart)

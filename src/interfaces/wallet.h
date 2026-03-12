@@ -215,6 +215,9 @@ public:
     //! Get balance.
     virtual CAmount getBalance() = 0;
 
+    //! Get stakingrewards.
+    virtual CAmount getStakingRewards() const = 0;
+
     //! Get available balance.
     virtual CAmount getAvailableBalance(const wallet::CCoinControl& coin_control) = 0;
 
@@ -258,6 +261,9 @@ public:
 
     // Return whether private keys enabled.
     virtual bool privateKeysDisabled() = 0;
+
+    // Return whether SegWit is active based on block height
+    virtual bool isSegwitActive() = 0;
 
     // Return whether the wallet contains a Taproot scriptPubKeyMan
     virtual bool taprootEnabled() = 0;

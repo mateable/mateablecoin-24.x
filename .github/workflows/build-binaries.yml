@@ -1,0 +1,97 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    branches: [ "24.x" ]
+    tags:
+      - 'v*' # Trigger on version tags
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux x86_64
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 bison
+    - name: Build Depends
+      run: |
+        cd depends
+        make HOST=x86_64-pc-linux-gnu NO_QT=1 -j$(nproc)
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure --prefix=$PWD/depends/x86_64-pc-linux-gnu --disable-tests --disable-bench
+        make -j$(nproc)
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v3
+      with:
+        name: mateable-linux-x64
+        path: |
+          src/mateabled
+          src/mateable-cli
+
+  build-windows:
+    name: Windows x64
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 nsis g++-mingw-w64-x86-64 bison
+    - name: Build Depends
+      run: |
+        cd depends
+        make HOST=x86_64-w64-mingw32 -j$(nproc)
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=$PWD/depends/x86_64-w64-mingw32 --disable-tests --disable-bench
+        make -j$(nproc)
+        make deploy
+    - name: Upload Installer
+      uses: actions/upload-artifact@v3
+      with:
+        name: mateable-windows-x64
+        path: |
+          release/*.exe
+          src/mateabled.exe
+          src/mateable-cli.exe
+          src/qt/mateable-qt.exe
+
+  create-release:
+    name: Create Release
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          mateable-linux-x64/*
+          mateable-windows-x64/*
+        name: Release ${{ github.ref_name }}
+        draft: true
+        prerelease: false
+        body: |
+          ### Mandatory Update for Staking Stability
+          
+          This release implements a major protocol upgrade including SegWit and Taproot support.
+          
+          **Key Changes:**
+          - Fixed Proof-of-Stake consensus bugs causing orphans on modern wallets.
+          - Improved staking performance by removing thread cooldowns.
+          - Enabled SegWit and Taproot activation at block 4,000,000.
+          
+          **Installation:**
+          - Update all nodes immediately to stay on the main chain.
+          - Staking rewards and kernel logic have been optimized for network longevity.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

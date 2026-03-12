@@ -200,28 +200,55 @@ OverviewPage::~OverviewPage()
 void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
 {
     BitcoinUnit unit = walletModel->getOptionsModel()->getDisplayUnit();
+    qint64 stakingRewards = walletModel->getStakingRewards(); // Fetch staking rewards
     if (walletModel->wallet().isLegacy()) {
         if (walletModel->wallet().privateKeysDisabled()) {
             ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount total = balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance;
+            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            if (m_privacy) {
+                ui->labelTotalUSD->setText(QString("#.########"));
+            } else {
+                double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+                ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+            }
         } else {
             ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount total = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+            ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            if (m_privacy) {
+                ui->labelTotalUSD->setText(QString("#.########"));
+            } else {
+                double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+                ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+            }
             ui->labelWatchAvailable->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelWatchPending->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
             ui->labelWatchImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+            CAmount watch_total = balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance;
+            ui->labelWatchTotal->setText(BitcoinUnits::formatWithPrivacy(unit, watch_total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         }
     } else {
         ui->labelBalance->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         ui->labelUnconfirmed->setText(BitcoinUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
         ui->labelImmature->setText(BitcoinUnits::formatWithPrivacy(unit, balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
-        ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+        CAmount total = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+        ui->labelTotal->setText(BitcoinUnits::formatWithPrivacy(unit, total, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+        if (m_privacy) {
+            ui->labelTotalUSD->setText(QString("#.########"));
+        } else {
+            double totalUSD = (static_cast<double>(total) / BitcoinUnits::factor(BitcoinUnit::BTC)) * m_price;
+            ui->labelTotalUSD->setText(QString("$%1").arg(totalUSD, 0, 'f', 2));
+        }
     }
+
+    // Set staking rewards
+    ui->labelStakingRewards->setText(BitcoinUnits::formatWithPrivacy(unit, stakingRewards, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy)); // Update UI with staking rewards
+
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
     bool showImmature = balances.immature_balance != 0;
@@ -268,7 +295,6 @@ void OverviewPage::setWalletModel(WalletModel *model)
         // Set up transaction list
         filter.reset(new TransactionFilterProxy());
         filter->setSourceModel(model->getTransactionTableModel());
-        filter->setLimit(NUM_ITEMS);
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);
         filter->setShowInactive(false);
@@ -277,6 +303,10 @@ void OverviewPage::setWalletModel(WalletModel *model)
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
+        connect(filter.get(), &TransactionFilterProxy::rowsInserted, this, &OverviewPage::LimitTransactionRows);
+        connect(filter.get(), &TransactionFilterProxy::rowsRemoved, this, &OverviewPage::LimitTransactionRows);
+        connect(filter.get(), &TransactionFilterProxy::rowsMoved, this, &OverviewPage::LimitTransactionRows);
+        LimitTransactionRows();
         // Keep up to date with wallet
         setBalance(model->getCachedBalance());
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
@@ -324,6 +354,25 @@ void OverviewPage::setPriceData()
     std::string newPriceData;
     return_random_exchange(newPriceData);
     this->ui->priceData->setText(QString::fromStdString(newPriceData));
+
+    // Parse price from the string
+    if (!newPriceData.empty()) {
+        QStringList parts = QString::fromStdString(newPriceData).split(QRegExp("\\s+"), QString::SkipEmptyParts);
+        if (parts.size() >= 2) {
+            bool ok;
+            double price = parts.last().toDouble(&ok);
+            if (ok) {
+                m_price = price;
+            }
+        }
+    }
+    // After updating the price, we need to update the balance display
+    if (walletModel) {
+        const auto& balances = walletModel->getCachedBalance();
+        if (balances.balance != -1) {
+            setBalance(balances);
+        }
+    }
 }
 
 void OverviewPage::setAnnouncementData()
@@ -336,6 +385,16 @@ void OverviewPage::setAnnouncementData()
         ui->AnnouncementData->setVisible(true);
     } else {
         ui->AnnouncementData->setVisible(false);
+    }
+}
+
+// Only show most recent NUM_ITEMS rows
+void OverviewPage::LimitTransactionRows()
+{
+    if (filter && ui->listTransactions && ui->listTransactions->model() && filter.get() == ui->listTransactions->model()) {
+        for (int i = 0; i < filter->rowCount(); ++i) {
+            ui->listTransactions->setRowHidden(i, i >= NUM_ITEMS);
+        }
     }
 }
 
@@ -378,4 +437,6 @@ void OverviewPage::setMonospacedFont(bool use_embedded_font)
     ui->labelWatchPending->setFont(f);
     ui->labelWatchImmature->setFont(f);
     ui->labelWatchTotal->setFont(f);
+    ui->labelStakingRewards->setFont(f);
+    ui->labelTotalUSD->setFont(f);
 }
