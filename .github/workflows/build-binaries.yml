@@ -5,15 +5,14 @@ on:
     branches: [ "24.x" ]
     tags:
       - 'v*'
-  workflow_dispatch: # Enable manual trigger
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  workflow_dispatch: 
 
 jobs:
   build-linux:
     name: Linux x86_64
     runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
     - uses: actions/checkout@v4
     - name: Install build tools
@@ -40,6 +39,8 @@ jobs:
   build-arm64:
     name: Linux ARM64
     runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
     steps:
     - uses: actions/checkout@v4
     - name: Install build tools
@@ -66,6 +67,8 @@ jobs:
   build-windows:
     name: Windows x64
     runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
     - uses: actions/checkout@v4
     - name: Install build tools
@@ -92,32 +95,9 @@ jobs:
           src/mateable-cli.exe
           src/qt/mateable-qt.exe
 
-  build-mac:
-    name: macOS Native
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install dependencies
-      run: brew install automake libtool boost pkg-config libevent qt@5 miniupnpc libnatpmp ccache zeromq qrencode bison flex
-    - name: Build Wallet
-      run: |
-        ./autogen.sh
-        ./configure --without-bdb --with-gui=yes --disable-tests --disable-bench
-        make -j$(sysctl -n hw.ncpu)
-        make deploy || echo "Deploy failed, checking for binaries"
-    - name: Upload DMG
-      uses: actions/upload-artifact@v4
-      with:
-        name: mateable-mac-dmg
-        path: |
-          ./*.dmg
-          src/mateabled
-          src/mateable-cli
-          src/qt/mateable-qt
-
   create-release:
     name: Create Release
-    needs: [build-linux, build-arm64, build-windows, build-mac]
+    needs: [build-linux, build-arm64, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -130,7 +110,6 @@ jobs:
           mateable-linux-x64/*
           mateable-linux-arm64/*
           mateable-windows-x64/*
-          mateable-mac-dmg/*
         name: Release ${{ github.ref_name }}
         draft: true
         prerelease: false
