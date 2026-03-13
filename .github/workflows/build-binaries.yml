@@ -7,6 +7,9 @@ on:
       - 'v*'
   workflow_dispatch: # Enable manual trigger
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-linux:
     name: Linux x86_64
@@ -95,7 +98,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: brew install automake libtool boost pkg-config libevent qt@5 miniupnpc libnatpmp ccache zeromq qrencode
+      run: brew install automake libtool boost pkg-config libevent qt@5 miniupnpc libnatpmp ccache zeromq qrencode bison flex
     - name: Build Wallet
       run: |
         ./autogen.sh
