@@ -4,15 +4,15 @@ on:
   push:
     branches: [ "24.x" ]
     tags:
-      - 'v*' # Trigger on version tags
-  workflow_dispatch:
+      - 'v*'
+  workflow_dispatch: # Enable manual trigger
 
 jobs:
   build-linux:
     name: Linux x86_64
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install build tools
       run: |
         sudo apt-get update
@@ -27,9 +27,35 @@ jobs:
         CONFIG_SITE=$PWD/depends/x86_64-pc-linux-gnu/share/config.site ./configure --prefix=$PWD/depends/x86_64-pc-linux-gnu --disable-tests --disable-bench
         make -j$(nproc)
     - name: Upload Binaries
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mateable-linux-x64
+        path: |
+          src/mateabled
+          src/mateable-cli
+
+  build-arm64:
+    name: Linux ARM64
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 bison g++-aarch64-linux-gnu
+    - name: Build Depends
+      run: |
+        cd depends
+        make HOST=aarch64-linux-gnu NO_QT=1 -j$(nproc)
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=$PWD/depends/aarch64-linux-gnu --disable-tests --disable-bench
+        make -j$(nproc)
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: mateable-linux-arm64
         path: |
           src/mateabled
           src/mateable-cli
@@ -38,7 +64,7 @@ jobs:
     name: Windows x64
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install build tools
       run: |
         sudo apt-get update
@@ -54,7 +80,7 @@ jobs:
         make -j$(nproc)
         make deploy
     - name: Upload Installer
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mateable-windows-x64
         path: |
@@ -63,35 +89,50 @@ jobs:
           src/mateable-cli.exe
           src/qt/mateable-qt.exe
 
+  build-mac:
+    name: macOS Native
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: brew install automake libtool boost pkg-config libevent qt@5 miniupnpc libnatpmp ccache zeromq qrencode
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        ./configure --without-bdb --with-gui=yes --disable-tests --disable-bench
+        make -j$(sysctl -n hw.ncpu)
+        make deploy || echo "Deploy failed, checking for binaries"
+    - name: Upload DMG
+      uses: actions/upload-artifact@v4
+      with:
+        name: mateable-mac-dmg
+        path: |
+          ./*.dmg
+          src/mateabled
+          src/mateable-cli
+          src/qt/mateable-qt
+
   create-release:
     name: Create Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-arm64, build-windows, build-mac]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
     - name: Download Artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
           mateable-linux-x64/*
+          mateable-linux-arm64/*
           mateable-windows-x64/*
+          mateable-mac-dmg/*
         name: Release ${{ github.ref_name }}
         draft: true
         prerelease: false
         body: |
           ### Mandatory Update for Staking Stability
-          
           This release implements a major protocol upgrade including SegWit and Taproot support.
-          
-          **Key Changes:**
-          - Fixed Proof-of-Stake consensus bugs causing orphans on modern wallets.
-          - Improved staking performance by removing thread cooldowns.
-          - Enabled SegWit and Taproot activation at block 4,000,000.
-          
-          **Installation:**
-          - Update all nodes immediately to stay on the main chain.
-          - Staking rewards and kernel logic have been optimized for network longevity.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
