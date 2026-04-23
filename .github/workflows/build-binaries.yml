@@ -84,20 +84,76 @@ jobs:
         ./autogen.sh
         CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=$PWD/depends/x86_64-w64-mingw32 --disable-tests --disable-bench
         make -j$(nproc)
-        make deploy
-    - name: Upload Installer
+    - name: Upload Binaries
       uses: actions/upload-artifact@v4
       with:
         name: mateable-windows-x64
         path: |
-          release/*.exe
           src/mateabled.exe
           src/mateable-cli.exe
           src/qt/mateable-qt.exe
 
+  build-macos-arm64:
+    name: macOS ARM64 (Apple Silicon)
+    runs-on: macos-14
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install build tools
+      run: |
+        brew install autoconf automake libtool pkg-config python3 bison
+        echo "$(brew --prefix bison)/bin" >> $GITHUB_PATH
+    - name: Build Depends
+      run: |
+        cd depends
+        make HOST=arm64-apple-darwin -j$(sysctl -n hw.logicalcpu)
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        CONFIG_SITE=$PWD/depends/arm64-apple-darwin/share/config.site ./configure --prefix=$PWD/depends/arm64-apple-darwin --disable-tests --disable-bench
+        make -j$(sysctl -n hw.logicalcpu)
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: mateable-macos-arm64
+        path: |
+          src/mateabled
+          src/mateable-cli
+          src/qt/mateable-qt
+
+  build-macos-x64:
+    name: macOS x86_64 (Intel)
+    runs-on: macos-13
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install build tools
+      run: |
+        brew install autoconf automake libtool pkg-config python3 bison
+        echo "$(brew --prefix bison)/bin" >> $GITHUB_PATH
+    - name: Build Depends
+      run: |
+        cd depends
+        make HOST=x86_64-apple-darwin -j$(sysctl -n hw.logicalcpu)
+    - name: Build Wallet
+      run: |
+        ./autogen.sh
+        CONFIG_SITE=$PWD/depends/x86_64-apple-darwin/share/config.site ./configure --prefix=$PWD/depends/x86_64-apple-darwin --disable-tests --disable-bench
+        make -j$(sysctl -n hw.logicalcpu)
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: mateable-macos-x64
+        path: |
+          src/mateabled
+          src/mateable-cli
+          src/qt/mateable-qt
+
   create-release:
     name: Create Release
-    needs: [build-linux, build-arm64, build-windows]
+    needs: [build-linux, build-arm64, build-windows, build-macos-arm64, build-macos-x64]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -110,6 +166,8 @@ jobs:
           mateable-linux-x64/*
           mateable-linux-arm64/*
           mateable-windows-x64/*
+          mateable-macos-arm64/*
+          mateable-macos-x64/*
         name: Release ${{ github.ref_name }}
         draft: true
         prerelease: false
