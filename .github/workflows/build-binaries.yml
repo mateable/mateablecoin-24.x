@@ -144,7 +144,7 @@ jobs:
       run: |
         ./autogen.sh
         export CFLAGS="-std=gnu11"
-        export CXXFLAGS="-std=gnu++17 -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-error=deprecated-builtins"
+        export CXXFLAGS="-std=gnu++17 -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-error=deprecated-builtins -Wno-enum-constexpr-conversion"
         CONFIG_SITE=$PWD/depends/arm64-apple-darwin/share/config.site \
         ./configure --prefix=$PWD/depends/arm64-apple-darwin \
           --disable-tests --disable-bench
@@ -188,7 +188,7 @@ jobs:
       run: |
         ./autogen.sh
         export CFLAGS="-std=gnu11"
-        export CXXFLAGS="-std=gnu++17 -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-error=deprecated-builtins"
+        export CXXFLAGS="-std=gnu++17 -D_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION -Wno-error=deprecated-builtins -Wno-enum-constexpr-conversion"
         CONFIG_SITE=$PWD/depends/x86_64-apple-darwin/share/config.site \
         ./configure --prefix=$PWD/depends/x86_64-apple-darwin \
           --disable-tests --disable-bench
