@@ -154,7 +154,7 @@ void bitstream_fill_buffer(struct bitstream* b, void* out, size_t outlen)
     size_t total = 0;
     while (total < outlen) {
         const int to_encrypt = MIN(outlen - total, BITSTREAM_BUF_SIZE);
-        encrypt_partial(b, out + total, to_encrypt);
+        encrypt_partial(b, (uint8_t*)out + total, to_encrypt);
         total += to_encrypt;
     }
 }
