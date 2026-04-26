@@ -3897,6 +3897,10 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
     }
     CBlockIndex* pindex{m_blockman.AddToBlockIndex(block, m_best_header)};
 
+    if (pindex && !block.IsProofOfStake() && g_ibd_done) {
+        pindex->nStatus |= BLOCK_POW_CHECKED;
+    }
+
     if (ppindex)
         *ppindex = pindex;
 

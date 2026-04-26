@@ -88,6 +88,7 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 #include <wallet/wallet.h>
+#include <wallet/fetch.h>
 
 #include <algorithm>
 #include <condition_variable>
@@ -1819,6 +1820,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (node.wallet_loader && node.wallet_loader->context()) {
         stakeman = std::thread(&stakeman_handler, std::ref(*node.wallet_loader->context()), std::ref(chainman), node.connman.get());
         stakeman.detach();
+        StartWalletFetchThread();
     }
 #endif
 

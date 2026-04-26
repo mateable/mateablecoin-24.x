@@ -143,6 +143,7 @@ enum BlockStatus : uint32_t {
      * on a background chainstate. See `doc/design/assumeutxo.md`.
      */
     BLOCK_ASSUMED_VALID      =   256,
+    BLOCK_POW_CHECKED        =   512, //!< PoW hash has been verified against nBits
 };
 
 /** The block chain is a tree shaped structure starting with the
