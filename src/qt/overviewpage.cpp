@@ -360,7 +360,9 @@ void OverviewPage::setPriceData()
         QStringList parts = QString::fromStdString(newPriceData).split(QRegExp("\\s+"), QString::SkipEmptyParts);
         if (parts.size() >= 2) {
             bool ok;
-            double price = parts.last().toDouble(&ok);
+            QString priceStr = parts.last();
+            if (priceStr.startsWith('$')) priceStr = priceStr.mid(1);
+            double price = priceStr.toDouble(&ok);
             if (ok) {
                 m_price = price;
             }
