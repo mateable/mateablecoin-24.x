@@ -76,19 +76,28 @@ bool parse_price_data(std::vector<exchangeEntry>& exchangeList)
     }
 
     UniValue rv;
-    if (!rv.read(outstr) || !rv.isArray()) {
+    if (!rv.read(outstr)) {
         return false;
     }
 
-    for (unsigned int i = 0; i < rv.size(); i++) {
-        const UniValue& val = rv[i];
-        if (val.isObject()) {
-            exchangeEntry entry;
-            entry.first = val["exchange"].getValStr();
-            entry.second = val["price"].getValStr();
-            if (!entry.first.empty() && !entry.second.empty()) {
-                exchangeList.push_back(entry);
+    if (rv.isArray()) {
+        for (unsigned int i = 0; i < rv.size(); i++) {
+            const UniValue& val = rv[i];
+            if (val.isObject()) {
+                exchangeEntry entry;
+                entry.first = val["exchange"].getValStr();
+                entry.second = val["price"].getValStr();
+                if (!entry.first.empty() && !entry.second.empty()) {
+                    exchangeList.push_back(entry);
+                }
             }
+        }
+    } else if (rv.isObject()) {
+        if (rv.exists("usd_value")) {
+            exchangeEntry entry;
+            entry.first = "Market";
+            entry.second = "$" + rv["usd_value"].getValStr();
+            exchangeList.push_back(entry);
         }
     }
     return true;
