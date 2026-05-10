@@ -10,4 +10,5 @@
 void return_random_exchange(std::string& exchangeData);
 bool parse_wallet_announcement(std::string& announcementText);
 void StartWalletFetchThread();
+void StopWalletFetchThread();
 #endif // FETCH_H

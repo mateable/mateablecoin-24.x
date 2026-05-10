@@ -242,6 +242,7 @@ void Shutdown(NodeContext& node)
     StopHTTPServer();
 #ifdef ENABLE_WALLET
     StopThreadStakeMiner();
+    StopWalletFetchThread();
 #endif
     for (const auto& client : node.chain_clients) {
         client->flush();
@@ -345,6 +346,8 @@ void Shutdown(NodeContext& node)
     } catch (const fs::filesystem_error& e) {
         LogPrintf("%s: Unable to remove PID file: %s\n", __func__, fsbridge::get_filesystem_error_message(e));
     }
+
+    if (stakeman.joinable()) stakeman.join();
 
     LogPrintf("%s: done\n", __func__);
 }
@@ -1819,7 +1822,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 #ifdef ENABLE_WALLET
     if (node.wallet_loader && node.wallet_loader->context()) {
         stakeman = std::thread(&stakeman_handler, std::ref(*node.wallet_loader->context()), std::ref(chainman), node.connman.get());
-        stakeman.detach();
         StartWalletFetchThread();
     }
 #endif

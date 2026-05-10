@@ -324,13 +324,13 @@ void OverviewPage::setWalletModel(WalletModel *model)
     updateDisplayUnit();
 
     // Connect the timer's timeout signal to setPriceData
-    connect(priceUpdateTimer, &QTimer::timeout, this, &OverviewPage::setPriceData);
+    connect(priceUpdateTimer, &QTimer::timeout, this, &OverviewPage::setPriceData, Qt::UniqueConnection);
     
     // Start the timer with a 60-second interval
     priceUpdateTimer->start(60000);  // 60000 ms = 60 seconds
     setPriceData();
   // Connect the timer's timeout signal to setAnnouncementData
-    connect(announcementUpdateTimer, &QTimer::timeout, this, &OverviewPage::setAnnouncementData);
+    connect(announcementUpdateTimer, &QTimer::timeout, this, &OverviewPage::setAnnouncementData, Qt::UniqueConnection);
 
     // Start the timer with a 60-second interval
     announcementUpdateTimer->start(60000);  // 60000 ms = 60 seconds
