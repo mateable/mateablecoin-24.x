@@ -57,6 +57,8 @@ private:
     QAction* copyMessageAction;
     QAction* copyAmountAction;
     const PlatformStyle *platformStyle;
+    bool m_segwit_activated{false};
+    bool m_taproot_activated{false};
 
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
@@ -74,6 +76,7 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void updateAddressTypeDropdown();
 };
 
 #endif // BITCOIN_QT_RECEIVECOINSDIALOG_H

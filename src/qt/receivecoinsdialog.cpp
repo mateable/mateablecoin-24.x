@@ -8,6 +8,7 @@
 #include <qt/forms/ui_receivecoinsdialog.h>
 
 #include <qt/addresstablemodel.h>
+#include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
@@ -88,20 +89,10 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
 
         // Populate address type dropdown and select default
-        auto add_address_type = [&](OutputType type, const QString& text, const QString& tooltip) {
-            const auto index = ui->addressType->count();
-            ui->addressType->addItem(text, (int) type);
-            ui->addressType->setItemData(index, tooltip, Qt::ToolTipRole);
-            if (model->wallet().getDefaultAddressType() == type) ui->addressType->setCurrentIndex(index);
-        };
-        add_address_type(OutputType::LEGACY, "Base58 (Legacy)", "Not recommended due to higher fees and less protection against typos.");
-        if (model->wallet().isSegwitActive()) {
-            add_address_type(OutputType::P2SH_SEGWIT, "Base58 (P2SH-SegWit)", "Generates an address compatible with older wallets.");
-            add_address_type(OutputType::BECH32, "Bech32 (SegWit)", "Generates a native segwit address (BIP-173). Some old wallets don't support it.");
-            if (model->wallet().taprootEnabled()) {
-                add_address_type(OutputType::BECH32M, "Bech32m (Taproot)", "Bech32m (BIP-350) is an upgrade to Bech32, wallet support is still limited.");
-            }
-        }
+        updateAddressTypeDropdown();
+
+        // Connect to numBlocksChanged to update the dropdown if SegWit/Taproot activates
+        connect(&model->clientModel(), &ClientModel::numBlocksChanged, this, &ReceiveCoinsDialog::updateAddressTypeDropdown);
 
         // Set the button to be enabled or disabled based on whether the wallet can give out new addresses.
         ui->receiveButton->setEnabled(model->wallet().canGetAddresses());
@@ -110,6 +101,53 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         connect(model, &WalletModel::canGetAddressesChanged, [this] {
             ui->receiveButton->setEnabled(model->wallet().canGetAddresses());
         });
+    }
+}
+
+void ReceiveCoinsDialog::updateAddressTypeDropdown()
+{
+    if (!model) return;
+
+    bool segwit_active = model->wallet().isSegwitActive();
+    bool taproot_active = model->wallet().taprootEnabled();
+
+    // Only update if the status has actually changed
+    if (ui->addressType->count() > 0 && segwit_active == m_segwit_activated && taproot_active == m_taproot_activated) {
+        return;
+    }
+
+    m_segwit_activated = segwit_active;
+    m_taproot_activated = taproot_active;
+
+    // Save current selection if any
+    int current_type = -1;
+    if (ui->addressType->count() > 0) {
+        current_type = ui->addressType->currentData().toInt();
+    }
+
+    ui->addressType->clear();
+
+    auto add_address_type = [&](OutputType type, const QString& text, const QString& tooltip) {
+        const auto index = ui->addressType->count();
+        ui->addressType->addItem(text, (int) type);
+        ui->addressType->setItemData(index, tooltip, Qt::ToolTipRole);
+        
+        // Restore previous selection or use default
+        if (current_type != -1) {
+            if (current_type == (int)type) ui->addressType->setCurrentIndex(index);
+        } else if (model->wallet().getDefaultAddressType() == type) {
+            ui->addressType->setCurrentIndex(index);
+        }
+    };
+
+    add_address_type(OutputType::LEGACY, "Base58 (Legacy)", "Not recommended due to higher fees and less protection against typos.");
+    
+    if (segwit_active) {
+        add_address_type(OutputType::P2SH_SEGWIT, "Base58 (P2SH-SegWit)", "Generates an address compatible with older wallets.");
+        add_address_type(OutputType::BECH32, "Bech32 (SegWit)", "Generates a native segwit address (BIP-173). Some old wallets don't support it.");
+        if (taproot_active) {
+            add_address_type(OutputType::BECH32M, "Bech32m (Taproot)", "Bech32m (BIP-350) is an upgrade to Bech32, wallet support is still limited.");
+        }
     }
 }
 
