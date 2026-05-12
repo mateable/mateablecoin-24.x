@@ -38,10 +38,14 @@ uint256 ghostrider_hash(const T1 pbegin, const T1 pend, const uint256 PrevBlockH
             cnSelection = randomCNs[2];
         }
 
-        coreHash(toHash, &hash[i], lenToHash, coreSelection);
-        cnHash(&hash[i - 1], &hash[i], lenToHash, cnSelection);
+        if (coreSelection >= 0) {
+            coreHash(toHash, &hash[i], lenToHash, coreSelection);
+        }
+        if (cnSelection >= 0) {
+            cnHash(&hash[i - 1], &hash[i], lenToHash, cnSelection);
+        }
     }
     return hash[17].trim256();
-}   
+}
 
 #endif // CRYPTO_GHOSTRIDER_GHOSTRIDER_H

@@ -291,7 +291,11 @@ void cn_slow_hash(const char* input, char* output, int len, int variant, uint32_
   /*memcpy(hash, &state, 32);*/
   extra_hashes[state.hs.b[0] & 3](&state, 200, output);
   oaes_free((OAES_CTX **) &aes_ctx);
+#if defined(_MSC_VER)
+  _freea(long_state);
+#else
   free(long_state);
+#endif
 }
 
 void cn_fast_hash(const char* input, char* output, uint32_t len) {
