@@ -111,9 +111,13 @@ jobs:
       with:
         name: mateable-windows-x64
         path: |
-          release/*.exe
-          src/*.exe
-          src/qt/*.exe
+          *-win64-setup.exe
+          src/mateabled.exe
+          src/mateable-cli.exe
+          src/mateable-tx.exe
+          src/mateable-util.exe
+          src/mateable-wallet.exe
+          src/qt/mateable-qt.exe
 
 
   build-macos-arm64:
@@ -160,6 +164,45 @@ jobs:
           src/qt/mateable-qt
 
 
+  package:
+    name: Package Artifacts
+    needs: [build-linux, build-arm64, build-windows, build-macos-arm64, build-macos-x64]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+
+    - name: Package by platform
+      run: |
+        VERSION=${{ github.ref_name }}
+        mkdir release
+
+        tar -czf release/mateable-${VERSION}-linux-x86_64.tar.gz \
+          -C dist/mateable-linux-x64 .
+
+        tar -czf release/mateable-${VERSION}-linux-arm64.tar.gz \
+          -C dist/mateable-linux-arm64 .
+
+        tar -czf release/mateable-${VERSION}-macos-arm64.tar.gz \
+          -C dist/mateable-macos-arm64 .
+
+        tar -czf release/mateable-${VERSION}-macos-x86_64.tar.gz \
+          -C dist/mateable-macos-x64 .
+
+        cd dist/mateable-windows-x64
+        find . -name 'test_mateable*' -delete
+        zip -r ../../release/mateable-${VERSION}-windows-x86_64.zip .
+
+    - name: Upload packaged release files
+      uses: actions/upload-artifact@v4
+      with:
+        name: mateable-${{ github.ref_name }}-all-platforms
+        path: release/*
+
+
   build-macos-x64:
     name: macOS Intel
     runs-on: macos-14
@@ -204,26 +247,3 @@ jobs:
           src/qt/mateable-qt
 
 
-  create-release:
-    name: Create Release
-    needs: [build-linux, build-arm64, build-windows, build-macos-arm64, build-macos-x64]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: dist
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: Release ${{ github.ref_name }}
-        draft: true
-        prerelease: false
-        files: dist/**/*
-        body: |
-          Automated release build for Mateable binaries.
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
