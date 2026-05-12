@@ -438,7 +438,12 @@ public:
         if (!(s.GetType() & SER_GETHASH)) READWRITE(VARINT_MODE(_nVersion, VarIntMode::NONNEGATIVE_SIGNED));
 
         READWRITE(VARINT_MODE(obj.nHeight, VarIntMode::NONNEGATIVE_SIGNED));
-        READWRITE(VARINT(obj.nStatus));
+        // BLOCK_POW_CHECKED is a transient in-memory cache hint; strip it on write
+        // to prevent unnecessary LevelDB write amplification and inconsistent state.
+        uint32_t nStatusOnDisk;
+        SER_WRITE(obj, nStatusOnDisk = obj.nStatus & ~BLOCK_POW_CHECKED);
+        READWRITE(VARINT(nStatusOnDisk));
+        SER_READ(obj, obj.nStatus = nStatusOnDisk);
         READWRITE(VARINT(obj.nTx));
         if (obj.nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO)) READWRITE(VARINT_MODE(obj.nFile, VarIntMode::NONNEGATIVE_SIGNED));
         if (obj.nStatus & BLOCK_HAVE_DATA) READWRITE(VARINT(obj.nDataPos));
