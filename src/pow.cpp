@@ -246,8 +246,22 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
     return true;
 }
 
+#include <sync.h>
+#include <map>
+
+static std::map<uint256, bool> mapPoWValid;
+static GlobalMutex cs_pow;
+
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
 {
+    {
+        LOCK(cs_pow);
+        auto it = mapPoWValid.find(hash);
+        if (it != mapPoWValid.end() && it->second) {
+            return true;
+        }
+    }
+
     bool fNegative;
     bool fOverflow;
     arith_uint256 bnTarget;
@@ -261,6 +275,11 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget)
         return false;
+
+    {
+        LOCK(cs_pow);
+        mapPoWValid[hash] = true;
+    }
 
     return true;
 }

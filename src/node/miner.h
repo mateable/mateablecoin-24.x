@@ -21,8 +21,11 @@ class ChainstateManager;
 class CBlockIndex;
 class CChainParams;
 class CScript;
+class CBlock;
 
 namespace Consensus { struct Params; };
+
+bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
 
 namespace node {
 static const bool DEFAULT_PRINTPRIORITY = false;

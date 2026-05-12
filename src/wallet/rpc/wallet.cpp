@@ -125,20 +125,15 @@ static RPCHelpMan getwalletinfo()
     }
     obj.pushKV("descriptors", pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
     obj.pushKV("external_signer", pwallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER));
-        // Fetch and add current price
+    // Fetch and add current price
     std::string exchangeData;
     return_random_exchange(exchangeData);
-
-size_t pos = exchangeData.find("usd");
-if (pos != std::string::npos) {
-    exchangeData = exchangeData.substr(pos + 3); // Skip "usd"
-    exchangeData.erase(0, exchangeData.find_first_not_of(" \t")); // Trim leading spaces
-}
     obj.pushKV("current_price", exchangeData);
-std::string announcement;
-if (parse_wallet_announcement(announcement)) {
-    obj.pushKV("announcement", announcement);
-}
+
+    std::string announcement;
+    if (parse_wallet_announcement(announcement)) {
+        obj.pushKV("announcement", announcement);
+    }
    return obj;
 },
     };
@@ -849,11 +844,10 @@ static RPCHelpMan getprice()
             std::string exchangeData;
             return_random_exchange(exchangeData);
 
-size_t pos = exchangeData.find("usd");
-if (pos != std::string::npos) {
-    exchangeData = exchangeData.substr(pos + 3); // Skip "usd"
-    exchangeData.erase(0, exchangeData.find_first_not_of(" \t")); // Trim leading spaces
-}
+            size_t pos = exchangeData.find('$');
+            if (pos != std::string::npos) {
+                exchangeData = exchangeData.substr(pos);
+            }
 
             UniValue r(UniValue::VOBJ);
             r.pushKV("price", exchangeData);

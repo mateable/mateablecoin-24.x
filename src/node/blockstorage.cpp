@@ -711,7 +711,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, const CBlockIndex* pindex)
 {
     block.SetNull();
 
@@ -730,8 +730,17 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
 
     // Check the header
     bool isPoS = block.IsProofOfStake();
-    if (!isPoS && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
-        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    if (!isPoS) {
+        bool already_checked = (pindex && (pindex->nStatus & BLOCK_POW_CHECKED));
+        if (!already_checked) {
+            if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
+                return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+            }
+            if (pindex) {
+                LOCK(cs_main);
+                const_cast<CBlockIndex*>(pindex)->nStatus |= BLOCK_POW_CHECKED;
+            }
+        }
     }
 
     // Signet only: check block solution
@@ -746,7 +755,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
 
-    if (!ReadBlockFromDisk(block, block_pos, consensusParams)) {
+    if (!ReadBlockFromDisk(block, block_pos, consensusParams, pindex)) {
         return false;
     }
     if (block.GetHash() != pindex->GetBlockHash()) {
