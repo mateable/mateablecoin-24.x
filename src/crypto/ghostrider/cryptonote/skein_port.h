@@ -93,9 +93,7 @@ typedef uint64_t        u64b_t;             /* 64-bit unsigned integer */
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #  define PLATFORM_BYTE_ORDER IS_LITTLE_ENDIAN
-#endif
-
-#if BYTE_ORDER == BIG_ENDIAN
+#elif BYTE_ORDER == BIG_ENDIAN
 #  define PLATFORM_BYTE_ORDER IS_BIG_ENDIAN
 #endif
 

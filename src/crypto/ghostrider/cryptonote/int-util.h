@@ -133,6 +133,14 @@ static inline uint64_t div128_64(uint64_t dividend_hi, uint64_t dividend_lo, uin
 #define IDENT32(x) ((uint32_t) (x))
 #define IDENT64(x) ((uint64_t) (x))
 
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
+#define SWAP32LE(x) SWAP32(x)
+#define SWAP64LE(x) SWAP64(x)
+#else
+#define SWAP32LE(x) ((uint32_t)(x))
+#define SWAP64LE(x) ((uint64_t)(x))
+#endif
+
 #define SWAP32(x) ((((uint32_t) (x) & 0x000000ff) << 24) | \
   (((uint32_t) (x) & 0x0000ff00) <<  8) | \
   (((uint32_t) (x) & 0x00ff0000) >>  8) | \
