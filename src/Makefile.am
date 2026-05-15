@@ -463,7 +463,7 @@ endif
 # wallet: shared between bitcoind and bitcoin-qt, but only linked
 # when wallet enabled
 libmateable_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(BDB_CPPFLAGS) $(SQLITE_CFLAGS)
-libmateable_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libmateable_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Wno-nonnull
 libmateable_wallet_a_SOURCES = \
   wallet/coincontrol.cpp \
   wallet/context.cpp \

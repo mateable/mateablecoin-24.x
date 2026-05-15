@@ -11,6 +11,7 @@
 // See: https://github.com/boostorg/process/issues/235
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnarrowing"
+#pragma GCC diagnostic ignored "-Wunused-result"
 #endif
 #include <boost/process.hpp>
 #if defined(__GNUC__)
