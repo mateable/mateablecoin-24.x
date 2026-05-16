@@ -20,6 +20,13 @@
 #include <crypto/ghostrider/cryptonote/int-util.h>
 #include <crypto/ghostrider/cryptonote/variant2_int_sqrt.h>
 
+#ifndef SWAP64LE
+#define SWAP64LE(x) ((uint64_t)(x))
+#endif
+#ifndef SWAP32LE
+#define SWAP32LE(x) ((uint32_t)(x))
+#endif
+
 #if defined(_MSC_VER)
 #include <malloc.h>
 #endif
