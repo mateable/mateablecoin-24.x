@@ -519,10 +519,8 @@ QGroupBox {
     margin-top: 18px;
     padding: 14px 8px 8px 8px;
     color: #66bbff;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 QGroupBox::title {
