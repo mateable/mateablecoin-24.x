@@ -528,6 +528,11 @@ QGroupBox::title {
     color: #aaaaaa;
 }
 
+QGroupBox#groupBox::title,
+QGroupBox#font_groupBox::title {
+    color: #4db8ff;
+}
+
 /* ---- TABS ---- */
 QTabWidget::pane {
     border: 1px solid #2a2a2a;

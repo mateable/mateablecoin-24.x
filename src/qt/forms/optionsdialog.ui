@@ -890,7 +890,7 @@
        <item>
         <widget class="QGroupBox" name="font_groupBox">
          <property name="title">
-          <string>Monospaced font:</string>
+          <string>Monospaced font in the Overview tab:</string>
          </property>
          <layout class="QVBoxLayout" name="font_verticalLayout">
           <item>
