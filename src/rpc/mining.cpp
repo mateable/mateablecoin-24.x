@@ -19,6 +19,7 @@
 #include <node/miner.h>
 #include <pos/manager.h>
 #include <pos/minter.h>
+#include <pos/pos.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
 #include <rpc/mining.h>
@@ -1206,6 +1207,41 @@ static RPCHelpMan submitheader()
     };
 }
 
+static RPCHelpMan getstakinginfo()
+{
+    return RPCHelpMan{"getstakinginfo",
+                "\nReturns a json object containing proof-of-stake mining information.",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::BOOL, "enabled", "'true' if the staking thread is running"},
+                        {RPCResult::Type::BOOL, "staking", "'true' if this node is currently attempting to stake a block"},
+                        {RPCResult::Type::NUM, "difficulty", "the current proof-of-stake difficulty"},
+                        {RPCResult::Type::NUM, "netstakeweight", "an estimate of the total coin-weight participating in staking across the network, derived from recent PoS block spacing and difficulty"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getstakinginfo", "")
+            + HelpExampleRpc("getstakinginfo", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    NodeContext& node = EnsureAnyNodeContext(request.context);
+    ChainstateManager& chainman = EnsureChainman(node);
+    LOCK(cs_main);
+    CBlockIndex* pindex = chainman.ActiveChain().Tip();
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("enabled", fStakerRunning.load());
+    obj.pushKV("staking", fIsStaking.load());
+    unsigned int nBitsPoS = GetNextWorkRequiredPoS(pindex, chainman.GetConsensus());
+    obj.pushKV("difficulty", GetDifficulty(nBitsPoS));
+    obj.pushKV("netstakeweight", pindex ? GetPoSKernelPS(pindex) : 0);
+    return obj;
+},
+    };
+}
+
 static RPCHelpMan setstaking()
 {
     return RPCHelpMan{"setstaking",
@@ -1249,6 +1285,7 @@ void RegisterMiningRPCCommands(CRPCTable& t)
         {"mining", &submitblock},
         {"mining", &submitheader},
         {"mining", &setstaking},
+        {"mining", &getstakinginfo},
 
         {"hidden", &generatetoaddress},
         {"hidden", &generatetodescriptor},
