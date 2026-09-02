@@ -6,8 +6,10 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QFile>
 #include <QImage>
 #include <QPalette>
+#include <QSettings>
 
 static const struct {
     const char *platformId;
@@ -19,7 +21,7 @@ static const struct {
     const bool useExtraSpacing;
 } platform_styles[] = {
     {"macosx", false, true, true},
-    {"windows", true, false, false},
+    {"windows", true, true, false},
     /* Other: linux, unix, ... */
     {"other", true, true, false}
 };
@@ -73,6 +75,8 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
     colorizeIcons(_colorizeIcons),
     useExtraSpacing(_useExtraSpacing)
 {
+    QSettings settings;
+    darkTheme = settings.value("fDarkTheme", true).toBool();
 }
 
 QColor PlatformStyle::TextColor() const
@@ -82,43 +86,38 @@ QColor PlatformStyle::TextColor() const
 
 QColor PlatformStyle::SingleColor() const
 {
-    if (colorizeIcons) {
-        const QColor colorHighlightBg(QApplication::palette().color(QPalette::Highlight));
-        const QColor colorHighlightFg(QApplication::palette().color(QPalette::HighlightedText));
-        const QColor colorText(QApplication::palette().color(QPalette::WindowText));
-        const int colorTextLightness = colorText.lightness();
-        if (abs(colorHighlightBg.lightness() - colorTextLightness) < abs(colorHighlightFg.lightness() - colorTextLightness)) {
-            return colorHighlightBg;
-        }
-        return colorHighlightFg;
-    }
-    return {0, 0, 0};
+    // Return theme accent color for icon colorization
+    return QColor(0xcc, 0xcc, 0xcc); // light grey — visible on dark background
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const
 {
-    if (!colorizeIcons)
-        return QImage(filename);
-    return ColorizeImage(filename, SingleColor());
+    if (!darkTheme) {
+        QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
+        if (QFile::exists(lightFile))
+            return QImage(lightFile);
+    }
+    return QImage(filename);
 }
 
 QIcon PlatformStyle::SingleColorIcon(const QString& filename) const
 {
-    if (!colorizeIcons)
-        return QIcon(filename);
-    return ColorizeIcon(filename, SingleColor());
+    if (!darkTheme) {
+        QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
+        if (QFile::exists(lightFile))
+            return QIcon(lightFile);
+    }
+    return QIcon(filename);
 }
 
 QIcon PlatformStyle::SingleColorIcon(const QIcon& icon) const
 {
-    if (!colorizeIcons)
-        return icon;
-    return ColorizeIcon(icon, SingleColor());
+    return icon;
 }
 
 QIcon PlatformStyle::TextColorIcon(const QIcon& icon) const
 {
-    return ColorizeIcon(icon, TextColor());
+    return icon;
 }
 
 const PlatformStyle *PlatformStyle::instantiate(const QString &platformId)

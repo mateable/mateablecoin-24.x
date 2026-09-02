@@ -31,6 +31,7 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QSettings>
 #include <QSystemTrayIcon>
 #include <QTimer>
 
@@ -201,6 +202,10 @@ void OptionsDialog::setModel(OptionsModel *_model)
         setMapper();
         mapper->toFirst();
 
+        // Load dark theme setting
+        QSettings settings;
+        ui->darkThemeCheckBox->setChecked(settings.value("fDarkTheme", true).toBool());
+
         updateDefaultProxyNets();
 
         // Show current debug.log file size
@@ -240,6 +245,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
     /* Display */
     connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
+    connect(ui->darkThemeCheckBox, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
 }
 
 void OptionsDialog::setCurrentTab(OptionsDialog::Tab tab)
@@ -363,6 +369,14 @@ void OptionsDialog::on_openBitcoinConfButton_clicked()
 void OptionsDialog::on_okButton_clicked()
 {
     mapper->submit();
+
+    // Save dark theme setting
+    QSettings settings;
+    bool wasDark = settings.value("fDarkTheme", true).toBool();
+    bool isDark  = ui->darkThemeCheckBox->isChecked();
+    settings.setValue("fDarkTheme", isDark);
+    if (wasDark != isDark) showRestartWarning();
+
     accept();
     updateDefaultProxyNets();
 }

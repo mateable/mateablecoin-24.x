@@ -1799,7 +1799,7 @@ int64_t CWallet::RescanFromTime(int64_t startTime, const WalletRescanReserver& r
  */
 CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_block, int start_height, std::optional<int> max_height, const WalletRescanReserver& reserver, bool fUpdate, const bool save_progress)
 {
-    constexpr auto INTERVAL_TIME{60s};
+    constexpr auto INTERVAL_TIME{10s};
     auto current_time{reserver.now()};
     auto start_time{reserver.now()};
 

@@ -54,7 +54,12 @@
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
+#include <QFile>
 #include <QWindow>
+
+#ifdef WIN32
+#include <dwmapi.h>
+#endif
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -438,6 +443,21 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         } else {
             window->showMinimized();
         }
+
+#ifdef WIN32
+        // Apply dark title bar on Windows 10 1809+ when dark theme is active.
+        // DWM attribute 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (1903+)
+        // DWM attribute 19 = undocumented equivalent for 1809-1903
+        {
+            QSettings settings;
+            if (settings.value("fDarkTheme", true).toBool()) {
+                HWND hwnd = (HWND)window->winId();
+                BOOL dark = TRUE;
+                DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark));
+                DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
+            }
+        }
+#endif
         Q_EMIT splashFinished();
         Q_EMIT windowShown(window);
 
@@ -559,15 +579,25 @@ int GuiMain(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    // Now that the QApplication is setup and we have parsed our parameters, we can set the platform style
-    app.setupPlatformStyle();
-
     /// 3. Application identification
     // must be set before OptionsModel is initialized or translations are loaded,
     // as it is used to locate QSettings
     QApplication::setOrganizationName(QAPP_ORG_NAME);
     QApplication::setOrganizationDomain(QAPP_ORG_DOMAIN);
     QApplication::setApplicationName(QAPP_APP_NAME_DEFAULT);
+
+    // Apply theme after QSettings are accessible
+    {
+        QSettings settings;
+        if (settings.value("fDarkTheme", true).toBool()) {
+            QFile qss(QStringLiteral(":/styles/dark"));
+            if (qss.open(QFile::ReadOnly | QFile::Text))
+                app.setStyleSheet(QString::fromUtf8(qss.readAll()));
+        }
+    }
+
+    // Now that QSettings are accessible, set the platform style (reads fDarkTheme)
+    app.setupPlatformStyle();
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations
@@ -590,7 +620,7 @@ int GuiMain(int argc, char* argv[])
     bool did_show_intro = false;
     int64_t prune_MiB = 0;  // Intro dialog prune configuration
     // Gracefully exit if the user cancels
-    if (!Intro::showIfNeeded(did_show_intro)) return EXIT_SUCCESS;
+    if (!Intro::showIfNeeded(did_show_intro, prune_MiB)) return EXIT_SUCCESS;
 
     /// 6. Determine availability of data directory and parse bitcoin.conf
     /// - Do not call gArgs.GetDataDirNet() before this step finishes

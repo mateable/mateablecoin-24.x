@@ -5,18 +5,22 @@
 #ifndef PARTICL_POS_MINER_H
 #define PARTICL_POS_MINER_H
 
+#include <consensus/amount.h>
 #include <primitives/transaction.h>
 #include <thread>
 #include <threadinterrupt.h>
 
 #include <atomic>
 #include <memory>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace wallet {
 struct WalletContext;
 class CWallet;
+class CWalletTx;
 } // namespace wallet
 
 class Chainstate;
@@ -59,6 +63,8 @@ void StopThreadStakeMiner();
 void WakeThreadStakeMiner(wallet::CWallet* pwallet);
 void WakeAllThreadStakeMiner();
 bool ThreadStakeMinerStopped();
+
+bool SelectCoinsForStaking(wallet::CWallet* wallet, CAmount nTargetValue, std::set<std::pair<const wallet::CWalletTx*, unsigned int>>& setCoinsRet, CAmount& nValueRet);
 
 void ThreadStakeMiner(size_t nThreadID, std::vector<std::shared_ptr<wallet::CWallet>>& vpwallets, size_t nStart, size_t nEnd, ChainstateManager* chainman, CConnman* connman);
 bool CreateCoinStake(wallet::CWallet* wallet, CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, int nBlockHeight, int64_t nFees, CMutableTransaction& txNew, CKey& key, Chainstate& chain_state);

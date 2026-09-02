@@ -95,7 +95,7 @@ unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const C
         pindexFirst = pindexFirst->pprev;
     }
 
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algoNum, Params().GetConsensus());
+    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algoNum, params);
     if (!pindexPrevAlgo || !pindexFirst) {
         return InitialDifficulty(algoNum, params);
     }
