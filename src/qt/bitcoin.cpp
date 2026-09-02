@@ -57,6 +57,10 @@
 #include <QFile>
 #include <QWindow>
 
+#ifdef WIN32
+#include <dwmapi.h>
+#endif
+
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
 #if defined(QT_QPA_PLATFORM_XCB)
@@ -439,6 +443,21 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
         } else {
             window->showMinimized();
         }
+
+#ifdef WIN32
+        // Apply dark title bar on Windows 10 1809+ when dark theme is active.
+        // DWM attribute 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (1903+)
+        // DWM attribute 19 = undocumented equivalent for 1809-1903
+        {
+            QSettings settings;
+            if (settings.value("fDarkTheme", true).toBool()) {
+                HWND hwnd = (HWND)window->winId();
+                BOOL dark = TRUE;
+                DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark));
+                DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
+            }
+        }
+#endif
         Q_EMIT splashFinished();
         Q_EMIT windowShown(window);
 
