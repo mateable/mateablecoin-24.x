@@ -165,7 +165,8 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     frameBlocksLayout->setContentsMargins(3,0,3,0);
     frameBlocksLayout->setSpacing(3);
     unitDisplayControl = new UnitDisplayStatusBarControl(platformStyle);
-    labelStakingIcon = new QLabel();
+    labelStakingIcon = new GUIUtil::ClickableLabel(platformStyle);
+    labelStakingIcon->setCursor(Qt::PointingHandCursor);
     labelWalletEncryptionIcon = new GUIUtil::ThemedLabel(platformStyle);
     labelWalletHDStatusIcon = new GUIUtil::ThemedLabel(platformStyle);
     labelProxyIcon = new GUIUtil::ClickableLabel(platformStyle);
@@ -224,6 +225,11 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
 
     connect(labelBlocksIcon, &GUIUtil::ClickableLabel::clicked, this, &BitcoinGUI::showModalOverlay);
     connect(progressBar, &GUIUtil::ClickableProgressBar::clicked, this, &BitcoinGUI::showModalOverlay);
+#ifdef ENABLE_WALLET
+    if (walletFrame) {
+        connect(labelStakingIcon, &GUIUtil::ClickableLabel::clicked, this, [this](const QPoint&){ toggleStaking(); });
+    }
+#endif
 
 #ifdef Q_OS_MACOS
     m_app_nap_inhibitor = new CAppNapInhibitor;
@@ -319,6 +325,7 @@ void BitcoinGUI::createActions()
 
     toggleStakingAction = new QAction(tr("Enable staking..."), this);
     toggleStakingAction->setStatusTip(tr("Enable staking on current wallet"));
+    toggleStakingAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
     encryptWalletAction = new QAction(tr("&Encrypt Wallet…"), this);
     encryptWalletAction->setStatusTip(tr("Encrypt the private keys that belong to your wallet"));
     encryptWalletAction->setCheckable(true);
@@ -939,6 +946,7 @@ void BitcoinGUI::toggleStaking()
         toggleStakingAction->setText("Enable staking...");
         toggleStakingAction->setStatusTip("Enable staking on current wallet");
     }
+    setStakingStatus();
 }
 
 void BitcoinGUI::openClicked()
@@ -1396,16 +1404,16 @@ void BitcoinGUI::setStakingStatus()
         if (!fTryToSync) {
            labelStakingIcon->show();
            labelStakingIcon->setPixmap(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-           labelStakingIcon->setToolTip(tr("Staking is active"));
+           labelStakingIcon->setToolTip(tr("Staking is active — click to disable"));
         } else {
            labelStakingIcon->show();
            labelStakingIcon->setPixmap(QIcon(":/icons/staking_stalled").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-           labelStakingIcon->setToolTip(tr("Staking is stalled"));
+           labelStakingIcon->setToolTip(tr("Staking is stalled — click to disable"));
         }
     } else {
         labelStakingIcon->show();
         labelStakingIcon->setPixmap(QIcon(":/icons/staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-        labelStakingIcon->setToolTip(tr("Staking is inactive"));
+        labelStakingIcon->setToolTip(tr("Staking is inactive — click to enable"));
     }
 }
 

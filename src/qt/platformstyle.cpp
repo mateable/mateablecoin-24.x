@@ -19,7 +19,7 @@ static const struct {
     const bool useExtraSpacing;
 } platform_styles[] = {
     {"macosx", false, true, true},
-    {"windows", true, false, false},
+    {"windows", true, true, false},
     /* Other: linux, unix, ... */
     {"other", true, true, false}
 };
@@ -82,17 +82,8 @@ QColor PlatformStyle::TextColor() const
 
 QColor PlatformStyle::SingleColor() const
 {
-    if (colorizeIcons) {
-        const QColor colorHighlightBg(QApplication::palette().color(QPalette::Highlight));
-        const QColor colorHighlightFg(QApplication::palette().color(QPalette::HighlightedText));
-        const QColor colorText(QApplication::palette().color(QPalette::WindowText));
-        const int colorTextLightness = colorText.lightness();
-        if (abs(colorHighlightBg.lightness() - colorTextLightness) < abs(colorHighlightFg.lightness() - colorTextLightness)) {
-            return colorHighlightBg;
-        }
-        return colorHighlightFg;
-    }
-    return {0, 0, 0};
+    // Return theme accent color for icon colorization
+    return QColor(0xcc, 0xcc, 0xcc); // light grey — visible on dark background
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const
@@ -118,7 +109,7 @@ QIcon PlatformStyle::SingleColorIcon(const QIcon& icon) const
 
 QIcon PlatformStyle::TextColorIcon(const QIcon& icon) const
 {
-    return ColorizeIcon(icon, TextColor());
+    return icon;
 }
 
 const PlatformStyle *PlatformStyle::instantiate(const QString &platformId)

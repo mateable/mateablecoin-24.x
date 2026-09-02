@@ -1,4 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/styles">
+        <file alias="dark">res/styles/dark.qss</file>
+    </qresource>
     <qresource prefix="/icons">
         <file alias="splash">res/icons/splash.png</file>
         <file alias="bitcoin">res/icons/bitcoin.png</file>

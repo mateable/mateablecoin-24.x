@@ -594,17 +594,23 @@
         </widget>
        </item>
        <item>
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
+        <widget class="QLabel" name="labelLogo">
+         <property name="alignment">
+          <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
          </property>
-         <property name="sizeHint" stdset="0">
+         <property name="pixmap">
+          <pixmap resource="../bitcoin.qrc">:/icons/splash</pixmap>
+         </property>
+         <property name="scaledContents">
+          <bool>false</bool>
+         </property>
+         <property name="minimumSize">
           <size>
-           <width>20</width>
-           <height>40</height>
+           <width>0</width>
+           <height>80</height>
           </size>
          </property>
-        </spacer>
+        </widget>
        </item>
       </layout>
      </item>
@@ -619,7 +625,9 @@
    <header>qt/transactionoverviewwidget.h</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../bitcoin.qrc"/>
+ </resources>
  <connections/>
 </ui>
 

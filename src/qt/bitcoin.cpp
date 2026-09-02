@@ -54,6 +54,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
+#include <QFile>
 #include <QWindow>
 
 #if defined(QT_STATICPLUGIN)
@@ -544,6 +545,12 @@ int GuiMain(int argc, char* argv[])
 
     BitcoinApplication app;
     GUIUtil::LoadFont(QStringLiteral(":/fonts/monospace"));
+
+    {
+        QFile qss(QStringLiteral(":/styles/dark"));
+        if (qss.open(QFile::ReadOnly | QFile::Text))
+            app.setStyleSheet(QString::fromUtf8(qss.readAll()));
+    }
 
     /// 2. Parse command-line options. We do this after qt in order to show an error if there are problems parsing these
     // Command-line options take precedence:
