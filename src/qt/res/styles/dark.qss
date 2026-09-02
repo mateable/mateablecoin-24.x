@@ -524,11 +524,7 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    left: 14px;
-    top: -9px;
-    background: #252525;
-    padding: 1px 8px;
-    border-radius: 4px;
+    padding: 0 4px;
 }
 
 /* ---- TABS ---- */
