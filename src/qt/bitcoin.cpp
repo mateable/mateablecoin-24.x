@@ -547,9 +547,12 @@ int GuiMain(int argc, char* argv[])
     GUIUtil::LoadFont(QStringLiteral(":/fonts/monospace"));
 
     {
-        QFile qss(QStringLiteral(":/styles/dark"));
-        if (qss.open(QFile::ReadOnly | QFile::Text))
-            app.setStyleSheet(QString::fromUtf8(qss.readAll()));
+        QSettings settings;
+        if (settings.value("fDarkTheme", true).toBool()) {
+            QFile qss(QStringLiteral(":/styles/dark"));
+            if (qss.open(QFile::ReadOnly | QFile::Text))
+                app.setStyleSheet(QString::fromUtf8(qss.readAll()));
+        }
     }
 
     /// 2. Parse command-line options. We do this after qt in order to show an error if there are problems parsing these
