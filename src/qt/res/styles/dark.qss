@@ -516,7 +516,7 @@ QGroupBox {
     border-radius: 8px;
     margin-top: 18px;
     padding: 14px 8px 8px 8px;
-    color: #66bbff;
+    color: #aaaaaa;
     font-weight: 600;
     font-size: 11px;
 }
