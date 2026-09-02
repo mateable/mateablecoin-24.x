@@ -1819,18 +1819,7 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
     double progress_end = chain().guessVerificationProgress(end_hash);
     double progress_current = progress_begin;
     int block_height = start_height;
-    while (!fAbortRescan) {
-        if (chain().shutdownRequested()) {
-            if (save_progress && !result.last_scanned_block.IsNull()) {
-                CBlockLocator loc = m_chain->getActiveChainLocator(result.last_scanned_block);
-                if (!loc.IsNull()) {
-                    WalletLogPrintf("Saving scan progress before shutdown at block %d.\n", result.last_scanned_height);
-                    WalletBatch batch(GetDatabase());
-                    batch.WriteBestBlock(loc);
-                }
-            }
-            break;
-        }
+    while (!fAbortRescan && !chain().shutdownRequested()) {
         if (progress_end - progress_begin > 0.0) {
             m_scanning_progress = (progress_current - progress_begin) / (progress_end - progress_begin);
         } else { // avoid divide-by-zero for single block scan range (i.e. start and stop hashes are equal)
