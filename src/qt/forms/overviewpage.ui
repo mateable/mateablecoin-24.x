@@ -593,25 +593,6 @@
          </layout>
         </widget>
        </item>
-       <item>
-        <widget class="QLabel" name="labelLogo">
-         <property name="alignment">
-          <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
-         </property>
-         <property name="pixmap">
-          <pixmap resource="../bitcoin.qrc">:/icons/splash</pixmap>
-         </property>
-         <property name="scaledContents">
-          <bool>false</bool>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>80</height>
-          </size>
-         </property>
-        </widget>
-       </item>
       </layout>
      </item>
     </layout>
