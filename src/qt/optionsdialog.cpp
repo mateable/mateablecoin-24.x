@@ -245,6 +245,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
     /* Display */
     connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
+    connect(ui->darkThemeCheckBox, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
 }
 
 void OptionsDialog::setCurrentTab(OptionsDialog::Tab tab)
