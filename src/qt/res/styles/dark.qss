@@ -8,8 +8,6 @@
 QWidget {
     background-color: #1a1a1a;
     color: #f0f0f0;
-    font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 13px;
     border: none;
 }
 
