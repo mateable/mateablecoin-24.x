@@ -525,6 +525,7 @@ QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 4px;
+    color: #aaaaaa;
 }
 
 /* ---- TABS ---- */
