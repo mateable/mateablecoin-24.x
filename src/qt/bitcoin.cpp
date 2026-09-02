@@ -546,15 +546,6 @@ int GuiMain(int argc, char* argv[])
     BitcoinApplication app;
     GUIUtil::LoadFont(QStringLiteral(":/fonts/monospace"));
 
-    {
-        QSettings settings;
-        if (settings.value("fDarkTheme", true).toBool()) {
-            QFile qss(QStringLiteral(":/styles/dark"));
-            if (qss.open(QFile::ReadOnly | QFile::Text))
-                app.setStyleSheet(QString::fromUtf8(qss.readAll()));
-        }
-    }
-
     /// 2. Parse command-line options. We do this after qt in order to show an error if there are problems parsing these
     // Command-line options take precedence:
     SetupServerArgs(gArgs);
@@ -578,6 +569,16 @@ int GuiMain(int argc, char* argv[])
     QApplication::setOrganizationName(QAPP_ORG_NAME);
     QApplication::setOrganizationDomain(QAPP_ORG_DOMAIN);
     QApplication::setApplicationName(QAPP_APP_NAME_DEFAULT);
+
+    // Apply theme after QSettings are accessible
+    {
+        QSettings settings;
+        if (settings.value("fDarkTheme", true).toBool()) {
+            QFile qss(QStringLiteral(":/styles/dark"));
+            if (qss.open(QFile::ReadOnly | QFile::Text))
+                app.setStyleSheet(QString::fromUtf8(qss.readAll()));
+        }
+    }
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations
