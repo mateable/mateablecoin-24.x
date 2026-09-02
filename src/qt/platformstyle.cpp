@@ -92,35 +92,27 @@ QColor PlatformStyle::SingleColor() const
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const
 {
-    if (!colorizeIcons)
-        return QImage(filename);
     if (!darkTheme) {
         QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
         if (QFile::exists(lightFile))
-            return ColorizeImage(lightFile, TextColor());
-        return ColorizeImage(filename, TextColor());
+            return QImage(lightFile);
     }
-    return ColorizeImage(filename, SingleColor());
+    return QImage(filename);
 }
 
 QIcon PlatformStyle::SingleColorIcon(const QString& filename) const
 {
-    if (!colorizeIcons)
-        return QIcon(filename);
     if (!darkTheme) {
         QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
         if (QFile::exists(lightFile))
-            return ColorizeIcon(lightFile, TextColor());
-        return ColorizeIcon(filename, TextColor());
+            return QIcon(lightFile);
     }
-    return ColorizeIcon(filename, SingleColor());
+    return QIcon(filename);
 }
 
 QIcon PlatformStyle::SingleColorIcon(const QIcon& icon) const
 {
-    if (!colorizeIcons)
-        return icon;
-    return ColorizeIcon(icon, darkTheme ? SingleColor() : TextColor());
+    return icon;
 }
 
 QIcon PlatformStyle::TextColorIcon(const QIcon& icon) const
