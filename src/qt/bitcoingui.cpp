@@ -1400,19 +1400,21 @@ void BitcoinGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
 
 void BitcoinGUI::setStakingStatus()
 {
+    static bool darkTheme = QSettings().value("fDarkTheme", true).toBool();
+    const QString ipfx = darkTheme ? QStringLiteral(":/icons/") : QStringLiteral(":/icons-light/");
     if (fStakerRunning) {
         if (!fTryToSync) {
            labelStakingIcon->show();
-           labelStakingIcon->setPixmap(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+           labelStakingIcon->setPixmap(QIcon(ipfx + "staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
            labelStakingIcon->setToolTip(tr("Staking is active — click to disable"));
         } else {
            labelStakingIcon->show();
-           labelStakingIcon->setPixmap(QIcon(":/icons/staking_stalled").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+           labelStakingIcon->setPixmap(QIcon(ipfx + "staking_stalled").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
            labelStakingIcon->setToolTip(tr("Staking is stalled — click to disable"));
         }
     } else {
         labelStakingIcon->show();
-        labelStakingIcon->setPixmap(QIcon(":/icons/staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelStakingIcon->setPixmap(QIcon(ipfx + "staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         labelStakingIcon->setToolTip(tr("Staking is inactive — click to enable"));
     }
 }
