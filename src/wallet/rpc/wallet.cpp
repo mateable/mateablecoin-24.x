@@ -3,11 +3,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arith_uint256.h>
+#include <chainparams.h>
+#include <cmath>
 #include <core_io.h>
 #include <key_io.h>
+#include <node/context.h>
+#include <pos/minter.h>
+#include <pos/pos.h>
+#include <pow.h>
 #include <rpc/server.h>
+#include <rpc/server_util.h>
 #include <rpc/util.h>
+#include <sync.h>
 #include <util/translation.h>
+#include <validation.h>
 #include <wallet/context.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
@@ -604,6 +614,81 @@ static RPCHelpMan upgradewallet()
     };
 }
 
+static RPCHelpMan getstakingweight()
+{
+    return RPCHelpMan{"getstakingweight",
+                "\nReturns this wallet's stake-eligible balance weighed against the live proof-of-stake target, with a rough estimate of "
+                "expected time to find a stake. PoS difficulty on this chain can swing significantly block to block, so treat "
+                "expected_seconds as an order-of-magnitude estimate, not a countdown.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR_AMOUNT, "eligible_balance", "the portion of this wallet's balance currently eligible to stake (age/lock/ownership requirements met)"},
+                        {RPCResult::Type::NUM, "difficulty", "the current proof-of-stake difficulty"},
+                        {RPCResult::Type::NUM, "probability_per_attempt", /*optional=*/true, "chance a single kernel attempt succeeds, given eligible_balance and current difficulty (only present if eligible_balance > 0)"},
+                        {RPCResult::Type::NUM, "expected_seconds", /*optional=*/true, "rough estimate of expected time, in seconds, until this wallet finds a stake (only present if eligible_balance > 0)"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getstakingweight", "")
+            + HelpExampleRpc("getstakingweight", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    node::NodeContext* node = pwallet->chain().context();
+    if (!node) throw JSONRPCError(RPC_INTERNAL_ERROR, "Node context not reachable from wallet");
+    ChainstateManager& chainman = EnsureChainman(*node);
+
+    CAmount nValueIn = 0;
+    {
+        CAmount nBalance = wallet::GetSpendableBalance(*pwallet);
+        std::set<std::pair<const wallet::CWalletTx*, unsigned int>> setCoins;
+        SelectCoinsForStaking(pwallet.get(), nBalance - pwallet->nReserveBalance, setCoins, nValueIn);
+    }
+
+    unsigned int nBitsPoS;
+    {
+        LOCK(cs_main);
+        const CBlockIndex* pindex = chainman.ActiveChain().Tip();
+        nBitsPoS = GetNextWorkRequiredPoS(pindex, chainman.GetConsensus());
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("eligible_balance", ValueFromAmount(nValueIn));
+
+    // difficulty + probability, computed directly from the raw compact target
+    // (matches CheckStakeKernelHash's bnTarget.SetCompact(nBits); bnTarget *= bnWeight(nValueIn) exactly)
+    arith_uint256 bnTarget;
+    bnTarget.SetCompact(nBitsPoS);
+
+    double dDiff;
+    {
+        int nShift = (nBitsPoS >> 24) & 0xff;
+        dDiff = (double)0x0000ffff / (double)(nBitsPoS & 0x00ffffff);
+        while (nShift < 29) { dDiff *= 256.0; nShift++; }
+        while (nShift > 29) { dDiff /= 256.0; nShift--; }
+    }
+    obj.pushKV("difficulty", dDiff);
+
+    if (nValueIn > 0) {
+        arith_uint256 bnWeight(nValueIn);
+        arith_uint256 bnWeightedTarget = bnTarget * bnWeight;
+        double dProbabilityPerAttempt = bnWeightedTarget.getdouble() / std::pow(2.0, 256);
+        obj.pushKV("probability_per_attempt", dProbabilityPerAttempt);
+        if (dProbabilityPerAttempt > 0) {
+            double dAttemptIntervalSeconds = (double)(Params().GetStakeTimestampMask() + 1);
+            obj.pushKV("expected_seconds", dAttemptIntervalSeconds / dProbabilityPerAttempt);
+        }
+    }
+
+    return obj;
+},
+    };
+}
+
 static RPCHelpMan maxstakingvalue()
 {
     return RPCHelpMan{"maxstakingvalue",
@@ -1014,6 +1099,7 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &signrawtransactionwithwallet},
         {"wallet", &simulaterawtransaction},
         {"wallet", &maxstakingvalue},
+        {"wallet", &getstakingweight},
         {"wallet", &sendall},
         {"wallet", &unloadwallet},
         {"wallet", &upgradewallet},
