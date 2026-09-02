@@ -6,8 +6,10 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QFile>
 #include <QImage>
 #include <QPalette>
+#include <QSettings>
 
 static const struct {
     const char *platformId;
@@ -73,6 +75,8 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
     colorizeIcons(_colorizeIcons),
     useExtraSpacing(_useExtraSpacing)
 {
+    QSettings settings;
+    darkTheme = settings.value("fDarkTheme", true).toBool();
 }
 
 QColor PlatformStyle::TextColor() const
@@ -90,6 +94,12 @@ QImage PlatformStyle::SingleColorImage(const QString& filename) const
 {
     if (!colorizeIcons)
         return QImage(filename);
+    if (!darkTheme) {
+        QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
+        if (QFile::exists(lightFile))
+            return QImage(lightFile);
+        return ColorizeImage(filename, QColor(0x33, 0x33, 0x33));
+    }
     return ColorizeImage(filename, SingleColor());
 }
 
@@ -97,6 +107,12 @@ QIcon PlatformStyle::SingleColorIcon(const QString& filename) const
 {
     if (!colorizeIcons)
         return QIcon(filename);
+    if (!darkTheme) {
+        QString lightFile = QString(filename).replace(":/icons/", ":/icons-light/");
+        if (QFile::exists(lightFile))
+            return QIcon(lightFile);
+        return ColorizeIcon(filename, QColor(0x33, 0x33, 0x33));
+    }
     return ColorizeIcon(filename, SingleColor());
 }
 
@@ -104,7 +120,7 @@ QIcon PlatformStyle::SingleColorIcon(const QIcon& icon) const
 {
     if (!colorizeIcons)
         return icon;
-    return ColorizeIcon(icon, SingleColor());
+    return ColorizeIcon(icon, darkTheme ? SingleColor() : QColor(0x33, 0x33, 0x33));
 }
 
 QIcon PlatformStyle::TextColorIcon(const QIcon& icon) const

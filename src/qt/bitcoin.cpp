@@ -560,9 +560,6 @@ int GuiMain(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    // Now that the QApplication is setup and we have parsed our parameters, we can set the platform style
-    app.setupPlatformStyle();
-
     /// 3. Application identification
     // must be set before OptionsModel is initialized or translations are loaded,
     // as it is used to locate QSettings
@@ -579,6 +576,9 @@ int GuiMain(int argc, char* argv[])
                 app.setStyleSheet(QString::fromUtf8(qss.readAll()));
         }
     }
+
+    // Now that QSettings are accessible, set the platform style (reads fDarkTheme)
+    app.setupPlatformStyle();
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations

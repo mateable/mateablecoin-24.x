@@ -43,6 +43,7 @@ private:
     bool imagesOnButtons;
     bool colorizeIcons;
     bool useExtraSpacing;
+    bool darkTheme;
 };
 
 #endif // BITCOIN_QT_PLATFORMSTYLE_H
