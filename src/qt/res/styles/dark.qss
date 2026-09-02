@@ -518,7 +518,7 @@ QGroupBox {
     border-radius: 8px;
     margin-top: 18px;
     padding: 14px 8px 8px 8px;
-    color: #0099ff;
+    color: #66bbff;
     font-weight: 700;
     font-size: 11px;
     text-transform: uppercase;
@@ -530,7 +530,7 @@ QGroupBox::title {
     subcontrol-position: top left;
     left: 14px;
     top: -9px;
-    background: #1a1a1a;
+    background: #252525;
     padding: 1px 8px;
     border-radius: 4px;
 }
