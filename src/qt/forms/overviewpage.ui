@@ -401,6 +401,58 @@
   </property>
  </widget>
 </item>
+<item row="8" column="0">
+ <widget class="QLabel" name="labelStakingEligibleText">
+  <property name="text">
+   <string>Eligible to Stake:</string>
+  </property>
+ </widget>
+</item>
+<item row="8" column="1">
+ <widget class="QLabel" name="labelStakingEligible">
+  <property name="cursor">
+   <cursorShape>IBeamCursor</cursorShape>
+  </property>
+  <property name="toolTip">
+   <string>Portion of your balance currently eligible to stake (age/lock requirements met)</string>
+  </property>
+  <property name="text">
+   <string notr="true">0.00000000 BTC</string>
+  </property>
+  <property name="alignment">
+   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+  </property>
+  <property name="textInteractionFlags">
+   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+  </property>
+ </widget>
+</item>
+<item row="9" column="0">
+ <widget class="QLabel" name="labelStakingETAText">
+  <property name="text">
+   <string>Est. Time to Next Stake:</string>
+  </property>
+ </widget>
+</item>
+<item row="9" column="1">
+ <widget class="QLabel" name="labelStakingETA">
+  <property name="cursor">
+   <cursorShape>IBeamCursor</cursorShape>
+  </property>
+  <property name="toolTip">
+   <string>Rough estimate only -- PoS difficulty on this chain can swing significantly block to block</string>
+  </property>
+  <property name="text">
+   <string notr="true">--</string>
+  </property>
+  <property name="alignment">
+   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+  </property>
+  <property name="textInteractionFlags">
+   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+  </property>
+ </widget>
+</item>
 
             <item row="0" column="2">
              <widget class="QLabel" name="labelWatchonly">

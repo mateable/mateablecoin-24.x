@@ -144,6 +144,7 @@ BITCOIN_QT_H = \
   qt/qvalidatedlineedit.h \
   qt/qvaluecombobox.h \
   qt/receivecoinsdialog.h \
+  qt/stakinginfo.h \
   qt/receiverequestdialog.h \
   qt/recentrequeststablemodel.h \
   qt/rpcconsole.h \
@@ -262,6 +263,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/psbtoperationsdialog.cpp \
   qt/qrimagewidget.cpp \
   qt/receivecoinsdialog.cpp \
+  qt/stakinginfo.cpp \
   qt/receiverequestdialog.cpp \
   qt/recentrequeststablemodel.cpp \
   qt/sendcoinsdialog.cpp \

@@ -34,8 +34,10 @@ public:
     ~OverviewPage();
     QTimer *priceUpdateTimer;  // Declare the QTimer
     QTimer *announcementUpdateTimer;  // Declare the QTimer
+    QTimer *stakingInfoUpdateTimer;  // Declare the QTimer
     void setPriceData();
     void setAnnouncementData();
+    void setStakingInfoData();
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);

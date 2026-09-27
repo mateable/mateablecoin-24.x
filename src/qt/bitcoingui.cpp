@@ -22,6 +22,7 @@
 #ifdef ENABLE_WALLET
 #include <node/context.h>
 #include <pos/manager.h>
+#include <qt/stakinginfo.h>
 #include <pow.h>
 #include <arith_uint256.h>
 #include <util/moneystr.h>
@@ -1406,22 +1407,7 @@ void BitcoinGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
     labelWalletHDStatusIcon->show();
 }
 
-static QString FormatStakingETA(int64_t nSeconds)
-{
-    if (nSeconds <= 0) return QObject::tr("calculating…");
-    int64_t days = nSeconds / 86400;
-    int64_t hours = (nSeconds % 86400) / 3600;
-    int64_t minutes = (nSeconds % 3600) / 60;
-    if (days > 0) return QObject::tr("~%1d %2h").arg(days).arg(hours);
-    if (hours > 0) return QObject::tr("~%1h %2m").arg(hours).arg(minutes);
-    if (minutes > 0) return QObject::tr("~%1m").arg(minutes);
-    return QObject::tr("< 1m");
-}
-
-// Refreshed periodically (not every tick) from setStakingStatus() below --
-// mirrors the getstakingweight RPC's math exactly (same target arithmetic
-// as CheckStakeKernelHash), just computed in-process for the status bar
-// tooltip instead of round-tripping through RPC.
+// Refreshed periodically (not every tick) from setStakingStatus() below.
 static CAmount g_stakingEligibleBalance = 0;
 static int64_t g_stakingEtaSeconds = 0;
 
@@ -1432,34 +1418,7 @@ void BitcoinGUI::setStakingStatus()
     if (fStakerRunning && walletFrame && (nStakingEtaCounter++ % 10 == 0)) {
         WalletModel* const wallet_model = walletFrame->currentWalletModel();
         wallet::CWallet* pwallet = wallet_model ? wallet_model->wallet().wallet() : nullptr;
-        if (pwallet) {
-            CAmount nValueIn = 0;
-            CAmount nBalance = wallet::GetSpendableBalance(*pwallet);
-            std::set<std::pair<const wallet::CWalletTx*, unsigned int>> setCoins;
-            SelectCoinsForStaking(pwallet, nBalance - pwallet->nReserveBalance, setCoins, nValueIn);
-            g_stakingEligibleBalance = nValueIn;
-
-            node::NodeContext* node_ctx = pwallet->chain().context();
-            if (node_ctx && node_ctx->chainman && nValueIn > 0) {
-                unsigned int nBitsPoS;
-                {
-                    LOCK(cs_main);
-                    const CBlockIndex* pindex = node_ctx->chainman->ActiveChain().Tip();
-                    nBitsPoS = GetNextWorkRequiredPoS(pindex, node_ctx->chainman->GetConsensus());
-                }
-                arith_uint256 bnTarget;
-                bnTarget.SetCompact(nBitsPoS);
-                arith_uint256 bnWeight(nValueIn);
-                arith_uint256 bnWeightedTarget = bnTarget * bnWeight;
-                double dProbability = bnWeightedTarget.getdouble() / std::pow(2.0, 256);
-                if (dProbability > 0) {
-                    double dAttemptIntervalSeconds = (double)(Params().GetStakeTimestampMask() + 1);
-                    g_stakingEtaSeconds = (int64_t)(dAttemptIntervalSeconds / dProbability);
-                }
-            } else {
-                g_stakingEtaSeconds = 0;
-            }
-        }
+        GetStakingEligibleBalanceAndETA(pwallet, g_stakingEligibleBalance, g_stakingEtaSeconds);
     }
 #endif
 

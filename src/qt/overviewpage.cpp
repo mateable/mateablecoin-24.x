@@ -16,6 +16,9 @@
 #include <qt/transactionoverviewwidget.h>
 #include <qt/transactiontablemodel.h>
 #include <qt/walletmodel.h>
+#include <qt/stakinginfo.h>
+
+#include <wallet/wallet.h>
 
 #include <QAbstractItemDelegate>
 #include <QApplication>
@@ -146,7 +149,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     m_platform_style{platformStyle},
     txdelegate(new TxViewDelegate(platformStyle, this)),
     priceUpdateTimer(new QTimer(this)),  // Initialize the timer
-    announcementUpdateTimer(new QTimer(this))  // Initialize the timer
+    announcementUpdateTimer(new QTimer(this)),  // Initialize the timer
+    stakingInfoUpdateTimer(new QTimer(this))  // Initialize the timer
 
 {
     ui->setupUi(this);
@@ -249,6 +253,10 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
     // Set staking rewards
     ui->labelStakingRewards->setText(BitcoinUnits::formatWithPrivacy(unit, stakingRewards, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy)); // Update UI with staking rewards
 
+    // Balance just changed, so the eligible-to-stake portion may have too; refresh it now
+    // rather than waiting for the next timer tick.
+    setStakingInfoData();
+
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
     bool showImmature = balances.immature_balance != 0;
@@ -336,6 +344,12 @@ void OverviewPage::setWalletModel(WalletModel *model)
     announcementUpdateTimer->start(60000);  // 60000 ms = 60 seconds
     setAnnouncementData();
 
+    // Connect the timer's timeout signal to setStakingInfoData
+    connect(stakingInfoUpdateTimer, &QTimer::timeout, this, &OverviewPage::setStakingInfoData, Qt::UniqueConnection);
+
+    // Start the timer with a 30-second interval -- PoS difficulty can drift between balance-change events
+    stakingInfoUpdateTimer->start(30000);
+    setStakingInfoData();
 }
 
 void OverviewPage::changeEvent(QEvent* e)
@@ -390,6 +404,20 @@ void OverviewPage::setAnnouncementData()
     }
 }
 
+void OverviewPage::setStakingInfoData()
+{
+    if (!walletModel || !walletModel->getOptionsModel()) return;
+
+    wallet::CWallet* pwallet = walletModel->wallet().wallet();
+    CAmount eligible = 0;
+    int64_t etaSeconds = 0;
+    bool haveEligible = GetStakingEligibleBalanceAndETA(pwallet, eligible, etaSeconds);
+
+    BitcoinUnit unit = walletModel->getOptionsModel()->getDisplayUnit();
+    ui->labelStakingEligible->setText(BitcoinUnits::formatWithPrivacy(unit, eligible, BitcoinUnits::SeparatorStyle::ALWAYS, m_privacy));
+    ui->labelStakingETA->setText(haveEligible ? FormatStakingETA(etaSeconds) : QString("--"));
+}
+
 // Only show most recent NUM_ITEMS rows
 void OverviewPage::LimitTransactionRows()
 {
@@ -440,5 +468,7 @@ void OverviewPage::setMonospacedFont(bool use_embedded_font)
     ui->labelWatchImmature->setFont(f);
     ui->labelWatchTotal->setFont(f);
     ui->labelStakingRewards->setFont(f);
+    ui->labelStakingEligible->setFont(f);
+    ui->labelStakingETA->setFont(f);
     ui->labelTotalUSD->setFont(f);
 }
