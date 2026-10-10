@@ -27,7 +27,7 @@
 #include <utility>
 
 namespace node {
-int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
+int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, bool fPerAlgoLimitActive)
 {
     int64_t nOldTime = pblock->nTime;
     int64_t nNewTime{std::max<int64_t>(pindexPrev->GetMedianTimePast() + 1, TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime()))};
@@ -38,7 +38,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
     // Updating time can change work required on testnet:
     if (consensusParams.fPowAllowMinDifficultyBlocks) {
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, false, consensusParams);
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, false, consensusParams, fPerAlgoLimitActive);
     }
 
     return nNewTime - nOldTime;
@@ -178,11 +178,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     LogPrintf("CreateNewBlock(): algo: %s block weight: %u txs: %u fees: %ld sigops %d\n", fProofOfStake ? "pos" : GetAlgoName(algoNum), GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(pindexPrev, m_chainstate.m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     if (!fProofOfStake) {
-        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev, fPerAlgoLimitActive);
     }
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, false, chainparams.GetConsensus());
+    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, false, chainparams.GetConsensus(), fPerAlgoLimitActive);
     pblock->nNonce         = !fProofOfStake; //! hack to prevent pow being identified as pos
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 

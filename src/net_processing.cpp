@@ -1729,7 +1729,7 @@ bool PeerManagerImpl::BlockRequestAllowed(const CBlockIndex* pindex)
     if (m_chainman.ActiveChain().Contains(pindex)) return true;
     return pindex->IsValid(BLOCK_VALID_SCRIPTS) && (m_chainman.m_best_header != nullptr) &&
            (m_chainman.m_best_header->GetBlockTime() - pindex->GetBlockTime() < STALE_RELAY_AGE_LIMIT) &&
-           (GetBlockProofEquivalentTime(*m_chainman.m_best_header, *pindex, *m_chainman.m_best_header, m_chainparams.GetConsensus()) < STALE_RELAY_AGE_LIMIT);
+           (GetBlockProofEquivalentTime(*m_chainman.m_best_header, *pindex, *m_chainman.m_best_header, m_chainparams.GetConsensus(), DeploymentActiveAfter(m_chainman.m_best_header->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) < STALE_RELAY_AGE_LIMIT);
 }
 
 std::optional<std::string> PeerManagerImpl::FetchBlock(NodeId peer_id, const CBlockIndex& block_index)
@@ -2379,7 +2379,14 @@ void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, Peer& peer, const CBlo
 bool PeerManagerImpl::CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams, Peer& peer)
 {
     // Do these headers have proof-of-work matching what's claimed?
-    if (!HasValidProofOfWork(headers, consensusParams)) {
+    // Not per-header-exact (these headers may not be connected to the active
+    // chain yet), but using the current active tip as the activation context
+    // is correct and safe: by the time any legitimate eased-limit header
+    // exists anywhere, the real network's active chain must already reflect
+    // that, so this can't incorrectly reject a genuine header post-activation
+    // nor incorrectly accept an invalid one pre-activation.
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(m_chainman.ActiveChain().Tip(), m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
+    if (!HasValidProofOfWork(headers, consensusParams, fPerAlgoLimitActive)) {
         Misbehaving(peer, 100, "header with invalid proof of work");
         return false;
     }
@@ -2401,7 +2408,8 @@ arith_uint256 PeerManagerImpl::GetAntiDoSWorkThreshold()
         const CBlockIndex *tip = m_chainman.ActiveChain().Tip();
         // Use a 144 block buffer, so that we'll accept headers that fork from
         // near our tip.
-        near_chaintip_work = tip->nChainWork - std::min<arith_uint256>(144*GetBlockProof(*tip, consensusParams), tip->nChainWork);
+        const bool fPerAlgoLimitActive = DeploymentActiveAfter(tip->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
+        near_chaintip_work = tip->nChainWork - std::min<arith_uint256>(144*GetBlockProof(*tip, consensusParams, fPerAlgoLimitActive), tip->nChainWork);
     }
     return std::max(near_chaintip_work, arith_uint256(nMinimumChainWork));
 }
@@ -2548,7 +2556,8 @@ bool PeerManagerImpl::IsContinuationOfLowWorkHeadersSync(Peer& peer, CNode& pfro
 bool PeerManagerImpl::TryLowWorkHeadersSync(Peer& peer, CNode& pfrom, const CBlockIndex* chain_start_header, std::vector<CBlockHeader>& headers)
 {
     // Calculate the total work on this chain.
-    arith_uint256 total_work = chain_start_header->nChainWork + CalculateHeadersWork(headers);
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(m_chainman.ActiveChain().Tip(), m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
+    arith_uint256 total_work = chain_start_header->nChainWork + CalculateHeadersWork(headers, fPerAlgoLimitActive);
 
     // Our dynamic anti-DoS threshold (minimum work required on a headers chain
     // before we'll store it)
@@ -4158,7 +4167,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 MaybeSendGetHeaders(pfrom, GetLocator(m_chainman.m_best_header), *peer);
             }
             return;
-        } else if (prev_block->nChainWork + CalculateHeadersWork({cmpctblock.header}) < GetAntiDoSWorkThreshold()) {
+        } else if (prev_block->nChainWork + CalculateHeadersWork({cmpctblock.header}, DeploymentActiveAfter(prev_block, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) < GetAntiDoSWorkThreshold()) {
             // If we get a low-work header in a compact block, we can ignore it.
             LogPrint(BCLog::NET, "Ignoring low-work compact block from peer %d\n", pfrom.GetId());
             return;
@@ -4500,7 +4509,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
             // Check work on this block against our anti-dos thresholds.
             const CBlockIndex* prev_block = m_chainman.m_blockman.LookupBlockIndex(pblock->hashPrevBlock);
-            if (prev_block && prev_block->nChainWork + CalculateHeadersWork({pblock->GetBlockHeader()}) >= GetAntiDoSWorkThreshold()) {
+            if (prev_block && prev_block->nChainWork + CalculateHeadersWork({pblock->GetBlockHeader()}, DeploymentActiveAfter(prev_block, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) >= GetAntiDoSWorkThreshold()) {
                 min_pow_checked = true;
             }
         }

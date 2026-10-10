@@ -141,6 +141,18 @@ public:
         consensus.SegwitHeight = 4000000;
         consensus.MinBIP9WarningHeight = 3950000; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        // Per-algo floors -- inert until DEPLOYMENT_PERALGO_POWLIMIT activates (see
+        // multialgo.cpp's GetPowLimit()). Scrypt/Whirlpool/Balloon keep today's shared
+        // floor unchanged. Yescrypt and Ghostrider get a much easier floor (3 fewer
+        // leading zero nibbles, ~4096x easier) so they're mineable again on ordinary
+        // CPU hashrate instead of sitting at a floor calibrated for hashrate that left
+        // long ago. Revisit this exact value against real post-activation difficulty
+        // data -- it's a tunable parameter, not a one-shot guess.
+        consensus.powLimits[ALGO_SCRYPT]     = consensus.powLimit;
+        consensus.powLimits[ALGO_YESCRYPT]   = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimits[ALGO_WHIRLPOOL]  = consensus.powLimit;
+        consensus.powLimits[ALGO_GHOSTRIDER] = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimits[ALGO_BALLOON]    = consensus.powLimit;
         consensus.nPowTargetTimespan = 1 * 60;
         consensus.nPowTargetSpacing = 1 *60;
         consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -176,6 +188,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 4000000; // Activate at SegWit fork height
+
+        // Deployment of per-algo PoW limits (easier yescrypt/ghostrider floors).
+        // Bit 4 -- clear of the algo nibble (bits 8-11), Taproot's bit (2), and
+        // TestDummy's bit (28). Real signaling window: both PoW and PoS blocks
+        // count toward this (see versionbits.cpp -- it reads nVersion generically,
+        // no PoW/PoS distinction), and PoS is currently producing the large
+        // majority of blocks, so this should move fast once wallets update.
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].bit = 4;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nStartTime = 1793491200; // 2026-11-01T00:00:00Z
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nTimeout = 1825027200; // 2027-11-01T00:00:00Z
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].min_activation_height = 0;
 
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000002dfa95b2102058d");  //yescrypt
@@ -288,6 +311,11 @@ public:
         consensus.SegwitHeight = 5;
         consensus.MinBIP9WarningHeight = 4;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        // Testnet's shared powLimit is already the easiest possible value, so a
+        // per-algo override can't make anything easier here -- just mirror it so
+        // the array-based lookup path itself (not the actual difficulty) gets
+        // real exercise before mainnet activation.
+        for (int i = 0; i < 5; i++) consensus.powLimits[i] = consensus.powLimit;
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
         consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -324,6 +352,12 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; // No activation delay
 
+        // Always active on testnet so the activation/lookup code path gets
+        // real exercise ahead of a real mainnet vote.
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].bit = 4;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].min_activation_height = 0;
 
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
         consensus.defaultAssumeValid = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
@@ -447,6 +481,7 @@ public:
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("00000377ae000000000000000000000000000000000000000000000000000000");
+        for (int i = 0; i < 5; i++) consensus.powLimits[i] = consensus.powLimit;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
@@ -457,6 +492,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; // No activation delay
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].bit = 4;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].min_activation_height = 0;
 
         // message start is defined as the first 4 bytes of the sha256d of the block script
         HashWriter h{};
@@ -508,6 +548,7 @@ public:
         consensus.SegwitHeight = 0; // Always active unless overridden
         consensus.MinBIP9WarningHeight = 0;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        for (int i = 0; i < 5; i++) consensus.powLimits[i] = consensus.powLimit;
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
         consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -542,6 +583,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; // No activation delay
+
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].bit = 4;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_PERALGO_POWLIMIT].min_activation_height = 0;
 
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};

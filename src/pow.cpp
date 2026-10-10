@@ -7,6 +7,7 @@
 
 #include <arith_uint256.h>
 #include <chain.h>
+#include <multialgo.h>
 #include <primitives/block.h>
 #include <uint256.h>
 
@@ -86,7 +87,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params, int algoNum)
+unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params, int algoNum, bool fPerAlgoLimitActive)
 {
     // find first block in averaging interval
     // Go back by what we want to be nAveragingInterval blocks per algo
@@ -95,9 +96,9 @@ unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const C
         pindexFirst = pindexFirst->pprev;
     }
 
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algoNum, params);
+    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, algoNum, Params().GetConsensus());
     if (!pindexPrevAlgo || !pindexFirst) {
-        return InitialDifficulty(algoNum, params);
+        return InitialDifficulty(algoNum, fPerAlgoLimitActive, params);
     }
 
     // Limit adjustment step
@@ -132,8 +133,9 @@ unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const C
         }
     }
 
-    if (bnNew > UintToArith256(Params().GetConsensus().powLimit)) {
-        bnNew = UintToArith256(Params().GetConsensus().powLimit);
+    const arith_uint256 bnAlgoLimit = UintToArith256(GetPowLimit(algoNum, fPerAlgoLimitActive, params));
+    if (bnNew > bnAlgoLimit) {
+        bnNew = bnAlgoLimit;
     }
 
     return bnNew.GetCompact();
@@ -170,7 +172,7 @@ unsigned int GetNextWorkRequiredPoS(const CBlockIndex* pindexLast, const Consens
     return bnNew.GetCompact();
 }
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, bool fProofOfStake, const Consensus::Params& params)
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, bool fProofOfStake, const Consensus::Params& params, bool fPerAlgoLimitActive)
 {
     // legacy
     int nHeight = pindexLast->nHeight + 1;
@@ -180,8 +182,8 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
     // multialgorithm
     if (!fProofOfStake) {
-        int algoNum = GetAlgo(pblock->nVersion);
-        return GetNextWorkRequiredMultiAlgo(pindexLast, pblock, params, algoNum);
+        int algoNum = pblock->GetPoWAlgoInt();
+        return GetNextWorkRequiredMultiAlgo(pindexLast, pblock, params, algoNum, fPerAlgoLimitActive);
     }
 
     // proofofstake
@@ -252,7 +254,7 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
 static std::map<uint256, bool> mapPoWValid;
 static GlobalMutex cs_pow;
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, int algo, bool fPerAlgoLimitActive)
 {
     {
         LOCK(cs_pow);
@@ -269,7 +271,8 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
 
     // Check range
-    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
+    arith_uint256 bnPowLimit = UintToArith256(GetPowLimit(algo, fPerAlgoLimitActive, params));
+    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > bnPowLimit)
         return false;
 
     // Check proof of work matches claimed amount

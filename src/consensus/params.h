@@ -34,6 +34,7 @@ enum DeploymentPos : uint16_t {
     // DEPLOYMENT_CSV, // Deployment of BIP68, BIP112, and BIP113.
     // DEPLOYMENT_SEGWIT, // Deployment of BIP141, BIP143, and BIP147.
     DEPLOYMENT_TAPROOT, // Deployment of Schnorr/Taproot (BIPs 340-342)
+    DEPLOYMENT_PERALGO_POWLIMIT, // Per-algo PoW difficulty floors (easier limits for yescrypt/ghostrider)
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in deploymentinfo.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -109,6 +110,12 @@ struct Params {
     BIP9Deployment vDeployments[MAX_VERSION_BITS_DEPLOYMENTS];
     /** Proof of work parameters */
     uint256 powLimit;
+    /** Per-algo PoW difficulty floors, indexed by ALGO_* from multialgo.h.
+     *  Only used once DEPLOYMENT_PERALGO_POWLIMIT is active -- before that,
+     *  every algo falls back to the single shared powLimit above, so this
+     *  array is purely additive and changes nothing until the network votes
+     *  it in. See multialgo.cpp's GetPowLimit(). */
+    uint256 powLimits[5];
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;

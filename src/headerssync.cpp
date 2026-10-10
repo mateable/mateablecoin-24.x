@@ -206,6 +206,13 @@ bool HeadersSyncState::ValidateAndProcessSingleHeader(const CBlockHeader& curren
         }
     }
 
+    // Deliberately uses the default (old, stricter) limit: this class has no
+    // ChainstateManager by design (headers here are from an untrusted peer,
+    // not-yet-connected to the real chain), so there's no real activation
+    // state to compute. Using the stricter limit can only ever underestimate
+    // a candidate chain's work during this preliminary phase -- never accept
+    // something invalid -- since the real, authoritative check happens later
+    // in ContextualCheckBlockHeader/ConnectBlock once headers actually connect.
     m_current_chain_work += GetBlockProof(CBlockIndex(current), m_consensus_params);
     m_last_header_received = current;
     m_current_height = next_height;
@@ -242,6 +249,7 @@ bool HeadersSyncState::ValidateAndStoreRedownloadedHeader(const CBlockHeader& he
     }
 
     // Track work on the redownloaded chain
+    // See the matching comment above in the presync phase -- same reasoning.
     m_redownload_chain_work += GetBlockProof(CBlockIndex(header), m_consensus_params);
 
     if (m_redownload_chain_work >= m_minimum_required_work) {

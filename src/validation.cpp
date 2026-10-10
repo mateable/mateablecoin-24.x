@@ -1621,7 +1621,7 @@ void Chainstate::CheckForkWarningConditions()
         return;
     }
 
-    if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip(), consensusParams) * 6)) {
+    if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip(), consensusParams, DeploymentActiveAfter(m_chain.Tip()->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) * 6)) {
         LogPrintf("%s: Warning: Found invalid chain at least ~6 blocks longer than our best chain.\nChain state database corruption likely.\n", __func__);
         SetfLargeWorkInvalidChainFound(true);
     } else {
@@ -2037,7 +2037,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // is enforced in ContextualCheckBlockHeader(); we wouldn't want to
     // re-enforce that rule here (at least until we make it impossible for
     // m_adjusted_time_callback() to go backward).
-    if (!CheckBlock(block, state, m_params.GetConsensus(), !fJustCheck, !fJustCheck)) {
+    if (!CheckBlock(block, state, m_params.GetConsensus(),
+                    DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT),
+                    !fJustCheck, !fJustCheck)) {
         if (state.GetResult() == BlockValidationResult::BLOCK_MUTATED) {
             // We don't write down blocks to disk if they may have been
             // corrupted, so this should be impossible unless we're having hardware
@@ -2105,7 +2107,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
                 //  artificially set the default assumed verified block further back.
                 // The test against nMinimumChainWork prevents the skipping when denied access to any chain at
                 //  least as good as the expected chain.
-                fScriptChecks = (GetBlockProofEquivalentTime(*m_chainman.m_best_header, *pindex, *m_chainman.m_best_header, m_params.GetConsensus()) <= 60 * 60 * 24 * 7 * 2);
+                fScriptChecks = (GetBlockProofEquivalentTime(*m_chainman.m_best_header, *pindex, *m_chainman.m_best_header, m_params.GetConsensus(), DeploymentActiveAfter(m_chainman.m_best_header->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) <= 60 * 60 * 24 * 7 * 2);
             }
         }
     }
@@ -3384,13 +3386,13 @@ void Chainstate::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pin
     }
 }
 
-static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
+static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fPerAlgoLimitActive = false, bool fCheckPOW = true)
 {
     if (!g_ibd_done) return true;
     bool isPoS = block.nNonce == 0;
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !isPoS && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !isPoS && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams, block.GetPoWAlgoInt(), fPerAlgoLimitActive))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -3511,7 +3513,7 @@ bool CheckBlockSignature(const CBlock& block)
     return false;
 }
 
-bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
+bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fPerAlgoLimitActive, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     // These are checks that are independent of context.
 
@@ -3520,7 +3522,7 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
+    if (!CheckBlockHeader(block, state, consensusParams, fPerAlgoLimitActive, fCheckPOW))
         return false;
 
     // Signet only: check block solution
@@ -3643,23 +3645,23 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
     return commitment;
 }
 
-bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
+bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams, bool fPerAlgoLimitActive)
 {
     if (!g_ibd_done) return true;
     return std::all_of(headers.cbegin(), headers.cend(),
             [&](const auto& header) {
                 bool isPoS = !header.nNonce;
-                return isPoS ? true : CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams);
+                return isPoS ? true : CheckProofOfWork(header.GetPoWHash(), header.nBits, consensusParams, header.GetPoWAlgoInt(), fPerAlgoLimitActive);
             });
 }
 
-arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
+arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers, bool fPerAlgoLimitActive)
 {
     arith_uint256 total_work{0};
     const Consensus::Params& consensusParams = Params().GetConsensus();
     for (const CBlockHeader& header : headers) {
         CBlockIndex dummy(header);
-        total_work += GetBlockProof(dummy, consensusParams);
+        total_work += GetBlockProof(dummy, consensusParams, fPerAlgoLimitActive);
     }
     return total_work;
 }
@@ -3681,13 +3683,14 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     const Consensus::Params& consensusParams = chainman.GetConsensus();
 
     // Check algorithm
-    const int algoNum = GetAlgo(block.nVersion);
+    const int algoNum = block.GetPoWAlgoInt();
     if (algoNum != ALGO_SCRYPT && nHeight < consensusParams.nMultiAlgoStartBlock)
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-algomode", "algorithm not allowed");
 
     // Check proof of work
     bool isPoS = block.nNonce == 0;
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, isPoS, consensusParams))
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
+    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, isPoS, consensusParams, fPerAlgoLimitActive))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 
     // Check against checkpoints
@@ -3714,7 +3717,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     // Reject blocks with outdated version
     if ((block.nVersion < 2 && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_HEIGHTINCB)) ||
         (block.nVersion < 3 && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_DERSIG)) ||
-        (block.nVersion < 4 && DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_CLTV))) {
+        (block.nVersion < 4 && (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_CLTV) || nHeight >= 4200000))) {
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
     }
@@ -3830,11 +3833,6 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             return true;
         }
 
-        if (!CheckBlockHeader(block, state, GetConsensus())) {
-            LogPrint(BCLog::VALIDATION, "%s: Consensus::CheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
-            return false;
-        }
-
         // Get prev block index
         CBlockIndex* pindexPrev = nullptr;
         BlockMap::iterator mi{m_blockman.m_block_index.find(block.hashPrevBlock)};
@@ -3847,6 +3845,12 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             LogPrint(BCLog::VALIDATION, "%s: %s prev block invalid\n", __func__, hash.ToString());
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_PREV, "bad-prevblk");
         }
+
+        if (!CheckBlockHeader(block, state, GetConsensus(), DeploymentActiveAfter(pindexPrev, *this, Consensus::DEPLOYMENT_PERALGO_POWLIMIT))) {
+            LogPrint(BCLog::VALIDATION, "%s: Consensus::CheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
+            return false;
+        }
+
         if (!ContextualCheckBlockHeader(block, state, m_blockman, *this, pindexPrev, m_options.adjusted_time_callback())) {
             LogPrint(BCLog::VALIDATION, "%s: Consensus::ContextualCheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
             return false;
@@ -4012,7 +4016,7 @@ bool Chainstate::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockV
         if (pindex->nChainWork < nMinimumChainWork) return true;
     }
 
-    if (!CheckBlock(block, state, m_params.GetConsensus()) ||
+    if (!CheckBlock(block, state, m_params.GetConsensus(), DeploymentActiveAfter(pindex->pprev, m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)) ||
         !ContextualCheckBlock(block, state, m_chainman, pindex->pprev)) {
         if (state.IsInvalid() && state.GetResult() != BlockValidationResult::BLOCK_MUTATED) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
@@ -4064,7 +4068,11 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         // malleability that cause CheckBlock() to fail; see e.g. CVE-2012-2459 and
         // https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2019-February/016697.html.  Because CheckBlock() is
         // not very expensive, the anti-DoS benefits of caching failure (of a definitely-invalid block) are not substantial.
-        bool ret = CheckBlock(*block, state, GetConsensus());
+        // The new block's own index entry (pindex, declared above) doesn't
+        // exist yet for a block seen for the first time -- look up its
+        // parent by hash instead, which is what the activation check needs.
+        const CBlockIndex *pindexPrev = m_blockman.LookupBlockIndex(block->hashPrevBlock);
+        bool ret = CheckBlock(*block, state, GetConsensus(), DeploymentActiveAfter(pindexPrev, *this, Consensus::DEPLOYMENT_PERALGO_POWLIMIT));
         if (ret) {
             // Store to disk
             ret = ActiveChainstate().AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
@@ -4120,7 +4128,7 @@ bool TestBlockValidity(BlockValidationState& state,
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, chainstate.m_blockman, chainstate.m_chainman, pindexPrev, adjusted_time_callback()))
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, state.ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot))
+    if (!CheckBlock(block, state, chainparams.GetConsensus(), DeploymentActiveAfter(pindexPrev, chainstate.m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT), fCheckPOW, fCheckMerkleRoot))
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     if (!ContextualCheckBlock(block, state, chainstate.m_chainman, pindexPrev))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, state.ToString());
@@ -4238,7 +4246,8 @@ bool CVerifyDB::VerifyDB(
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
         // check level 1: verify block validity
-        if (nCheckLevel >= 1 && !CheckBlock(block, state, consensus_params)) {
+        if (nCheckLevel >= 1 && !CheckBlock(block, state, consensus_params,
+                DeploymentActiveAfter(pindex->pprev, chainstate.m_chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT))) {
             return error("%s: *** found bad block at %d, hash=%s (%s)\n", __func__,
                          pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
         }

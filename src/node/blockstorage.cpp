@@ -107,6 +107,14 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, CBlockInde
         pindexNew->BuildSkip();
     }
     pindexNew->nTimeMax = (pindexNew->pprev ? std::max(pindexNew->pprev->nTimeMax, pindexNew->nTime) : pindexNew->nTime);
+    // Deliberately uses the default (old) limit: BlockManager sits below
+    // ChainstateManager in the dependency graph (chainman owns m_blockman,
+    // not the reverse), so it structurally cannot reach the versionbits
+    // cache here without an upward dependency. Impact is diluted anyway --
+    // GetBlockProof's per-algo call feeds a 5-algo geometric-mean baseline,
+    // not this block's own actual work, so one algo's floor being
+    // momentarily approximate affects a small fraction of a derived
+    // estimate, not a consensus accept/reject decision.
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew, consensusParams);
     pindexNew->RaiseValidity(BLOCK_VALID_TREE);
     if (best_header == nullptr || best_header->nChainWork < pindexNew->nChainWork) {
@@ -268,6 +276,7 @@ bool BlockManager::LoadBlockIndex(const Consensus::Params& consensus_params)
 
     for (CBlockIndex* pindex : vSortedByHeight) {
         if (ShutdownRequested()) return false;
+        // Same reasoning as AddToBlockIndex above re: using the default limit.
         pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex, consensus_params);
         pindex->nTimeMax = (pindex->pprev ? std::max(pindex->pprev->nTimeMax, pindex->nTime) : pindex->nTime);
 
@@ -711,7 +720,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, const CBlockIndex* pindex)
+bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams, const CBlockIndex* pindex, bool fPerAlgoLimitActive)
 {
     block.SetNull();
 
@@ -728,19 +737,13 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
-    // Check the header
+    // Check the header -- skip if this block's PoW was already verified once
+    // (tracked on its index entry); re-checking every re-read/re-serve would
+    // be pure wasted hashing for data we've already proven valid.
     bool isPoS = block.IsProofOfStake();
-    if (!isPoS) {
-        bool already_checked = (pindex && (pindex->nStatus & BLOCK_POW_CHECKED));
-        if (!already_checked) {
-            if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams)) {
-                return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-            }
-            if (pindex) {
-                LOCK(cs_main);
-                const_cast<CBlockIndex*>(pindex)->nStatus |= BLOCK_POW_CHECKED;
-            }
-        }
+    bool already_checked = (pindex && (pindex->nStatus & BLOCK_POW_CHECKED));
+    if (!isPoS && !already_checked && !CheckProofOfWork(block.GetPoWHash(), block.nBits, consensusParams, block.GetPoWAlgoInt(), fPerAlgoLimitActive)) {
+        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
     }
 
     // Signet only: check block solution
@@ -751,11 +754,11 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     return true;
 }
 
-bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams)
+bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams, bool fPerAlgoLimitActive)
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return pindex->GetBlockPos())};
 
-    if (!ReadBlockFromDisk(block, block_pos, consensusParams, pindex)) {
+    if (!ReadBlockFromDisk(block, block_pos, consensusParams, pindex, fPerAlgoLimitActive)) {
         return false;
     }
     if (block.GetHash() != pindex->GetBlockHash()) {

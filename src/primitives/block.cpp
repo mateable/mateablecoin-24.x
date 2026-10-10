@@ -41,6 +41,11 @@ uint256 CBlockHeader::GetPoWHash() const
     return GetHash();
 }
 
+int CBlockHeader::GetPoWAlgoInt() const
+{
+    return GetAlgo(nVersion);
+}
+
 std::string CBlock::ToString() const
 {
     std::stringstream s;

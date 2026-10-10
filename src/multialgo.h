@@ -41,7 +41,8 @@ int MatchAlgoName(std::string userAlgo);
 std::string GetAlgoName(int algo);
 std::string GetAlgoNameByIndex(const CBlockIndex* pindex);
 bool IsAlgoActive(const CBlockIndex* pindexPrev, int algo, const Consensus::Params& params);
-unsigned int InitialDifficulty(int algo, const Consensus::Params& params);
+unsigned int InitialDifficulty(int algo, bool fPerAlgoLimitActive, const Consensus::Params& params);
+uint256 GetPowLimit(int algo, bool fPerAlgoLimitActive, const Consensus::Params& params);
 const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo, const Consensus::Params& params);
 
 #endif // MULTIALGO_H

@@ -4,6 +4,7 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <multialgo.h>
 #include <pow.h>
 #include <test/util/setup_common.h>
 
@@ -199,6 +200,61 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
 BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
 {
     sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
+}
+
+/* GetPowLimit() is the single function the per-algo PoW limit feature (the
+ * eased Yescrypt/GhostRider floors, gated on DEPLOYMENT_PERALGO_POWLIMIT)
+ * actually depends on for correctness. Deliberately tested here against
+ * MAIN's real configured values rather than regtest's, since regtest keeps
+ * all five algos' floors identical by design (its shared floor was already
+ * at the maximum possible value, so there's nothing to differentiate) --
+ * MAIN is the only network where the real intended difference exists.
+ */
+BOOST_AUTO_TEST_CASE(GetPowLimit_inactive_uses_shared_limit)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const Consensus::Params& params = chainParams->GetConsensus();
+
+    // Before activation (fPerAlgoLimitActive=false), every algo -- including
+    // Yescrypt and GhostRider, which get a real easier floor once active --
+    // must fall back to exactly the old shared limit. This is what guarantees
+    // the feature changes nothing for anyone until the network votes it in.
+    for (int algo = ALGO_SCRYPT; algo <= ALGO_BALLOON; algo++) {
+        BOOST_CHECK_EQUAL(GetPowLimit(algo, /*fPerAlgoLimitActive=*/false, params), params.powLimit);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(GetPowLimit_active_differentiates_by_algo)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const Consensus::Params& params = chainParams->GetConsensus();
+
+    // Once active, Scrypt/Whirlpool/Balloon are unchanged from the shared
+    // limit -- only Yescrypt and GhostRider actually ease.
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_SCRYPT, true, params), params.powLimit);
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_WHIRLPOOL, true, params), params.powLimit);
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_BALLOON, true, params), params.powLimit);
+
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_YESCRYPT, true, params), params.powLimits[ALGO_YESCRYPT]);
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_GHOSTRIDER, true, params), params.powLimits[ALGO_GHOSTRIDER]);
+
+    // The whole point of the feature: the eased floor must actually be
+    // easier (a strictly larger max-target value) than the old shared one,
+    // not just "configured to a different but equally strict value".
+    BOOST_CHECK(UintToArith256(params.powLimits[ALGO_YESCRYPT]) > UintToArith256(params.powLimit));
+    BOOST_CHECK(UintToArith256(params.powLimits[ALGO_GHOSTRIDER]) > UintToArith256(params.powLimit));
+}
+
+BOOST_AUTO_TEST_CASE(GetPowLimit_out_of_range_algo_is_safe)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const Consensus::Params& params = chainParams->GetConsensus();
+
+    // An invalid algo index (e.g. ALGO_UNKNOWN) must never index out of
+    // bounds into powLimits[] -- it should safely fall back to the shared
+    // limit regardless of the active flag.
+    BOOST_CHECK_EQUAL(GetPowLimit(ALGO_UNKNOWN, true, params), params.powLimit);
+    BOOST_CHECK_EQUAL(GetPowLimit(NUM_ALGOS, true, params), params.powLimit);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -18,12 +18,16 @@ class uint256;
 unsigned int GetNextWorkRequiredLegacy(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
 unsigned int GetNextWorkRequiredPoS(const CBlockIndex* pindexLast, const Consensus::Params& params);
-unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&, int algoNum = ALGO_SCRYPT);
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, bool fProofOfStake, const Consensus::Params& params);
+unsigned int GetNextWorkRequiredMultiAlgo(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&, int algoNum = ALGO_SCRYPT, bool fPerAlgoLimitActive = false);
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, bool fProofOfStake, const Consensus::Params& params, bool fPerAlgoLimitActive = false);
 const CBlockIndex* GetLastPoSBlockIndex(const CBlockIndex* pindex);
 
-/** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);
+/** Check whether a block hash satisfies the proof-of-work requirement specified by nBits.
+ *  fPerAlgoLimitActive must be pre-computed by the caller via a real chain-aware
+ *  DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT)
+ *  check -- this function deliberately cannot compute that itself (no chain context
+ *  available this deep), so getting that bool right is entirely on the caller. */
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&, int algo = ALGO_SCRYPT, bool fPerAlgoLimitActive = false);
 
 /**
  * Return false if the proof-of-work requirement specified by new_nbits at a

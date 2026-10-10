@@ -116,9 +116,24 @@ bool IsAlgoActive(const CBlockIndex* pindexPrev, int algo, const Consensus::Para
     return true;
 }
 
-unsigned int InitialDifficulty(int algo, const Consensus::Params& params)
+unsigned int InitialDifficulty(int algo, bool fPerAlgoLimitActive, const Consensus::Params& params)
 {
-    return UintToArith256(params.powLimit).GetCompact();
+    return UintToArith256(GetPowLimit(algo, fPerAlgoLimitActive, params)).GetCompact();
+}
+
+uint256 GetPowLimit(int algo, bool fPerAlgoLimitActive, const Consensus::Params& params)
+{
+    // Deliberately takes a pre-computed "is the vote active" bool rather than a
+    // height or CBlockIndex*: correctly answering that question needs a real
+    // walk back through chain history (see DeploymentActiveAfter), which only
+    // the few real validation call sites that already have pindexPrev/chainman
+    // can do correctly. Keeping that chain-walking logic out of this function
+    // (and out of pow.cpp's retargeting math) means it can't accidentally be
+    // computed wrong -- or cheaply/incorrectly approximated -- far from where
+    // the real chain context actually lives.
+    if (fPerAlgoLimitActive && algo >= ALGO_SCRYPT && algo <= ALGO_BALLOON)
+        return params.powLimits[algo];
+    return params.powLimit;
 }
 
 const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo, const Consensus::Params& params)

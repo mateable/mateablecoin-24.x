@@ -58,6 +58,8 @@ public:
 
     uint256 GetPoWHash() const;
 
+    int GetPoWAlgoInt() const;
+
     bool IsProofOfWork() const
     {
         return !IsProofOfStake();

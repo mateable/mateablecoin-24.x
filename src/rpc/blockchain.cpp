@@ -501,7 +501,7 @@ static RPCHelpMan getalldifficulty()
     for (unsigned int i = 0; i < NUM_ALGOS; i++) {
         if (IsAlgoActive(chainman.ActiveChain().Tip(), i, chainman.GetConsensus())) {
             std::string algoName = GetAlgoName(i);
-            unsigned int algoDiff = GetNextWorkRequiredMultiAlgo(chainman.ActiveChain().Tip(), nullptr, chainman.GetConsensus(), i);
+            unsigned int algoDiff = GetNextWorkRequiredMultiAlgo(chainman.ActiveChain().Tip(), nullptr, chainman.GetConsensus(), i, DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT));
             result.pushKV(algoName, GetDifficulty(algoDiff));
         }
     }
@@ -1360,7 +1360,7 @@ RPCHelpMan getblockchaininfo()
     for (unsigned int i = 0; i < NUM_ALGOS; i++) {
         if (IsAlgoActive(chainman.ActiveChain().Tip(), i, chainman.GetConsensus())) {
             std::string algoName = GetAlgoName(i);
-            unsigned int algoDiff = GetNextWorkRequiredMultiAlgo(chainman.ActiveChain().Tip(), nullptr, chainman.GetConsensus(), i);
+            unsigned int algoDiff = GetNextWorkRequiredMultiAlgo(chainman.ActiveChain().Tip(), nullptr, chainman.GetConsensus(), i, DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT));
             algoDiffs.pushKV(algoName, GetDifficulty(algoDiff));
         }
     }
@@ -1409,6 +1409,7 @@ UniValue DeploymentInfo(const CBlockIndex* blockindex, const ChainstateManager& 
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_SEGWIT);
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_TESTDUMMY);
     SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_TAPROOT);
+    SoftForkDescPushBack(blockindex, softforks, chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
     return softforks;
 }
 } // anon namespace

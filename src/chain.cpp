@@ -140,7 +140,7 @@ arith_uint256 GetBlockProofBase(const CBlockIndex& block)
     return (~bnTarget / (bnTarget + 1)) + 1;
 }
 
-arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& params)
+arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& params, bool fPerAlgoLimitActive)
 {
     CBlockHeader header = block.GetBlockHeader();
     bool mainnet = Params().NetworkIDString() == CBaseChainParams::MAIN;
@@ -149,7 +149,7 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
     if (nHeight < params.nMultiAlgoStartBlock)
     {
         arith_uint256 bnBlockWork = GetBlockProofBase(block);
-        uint32_t nAlgoWork = GetAlgoWorkFactor(nHeight, GetAlgo(header.nVersion), params);
+        uint32_t nAlgoWork = GetAlgoWorkFactor(nHeight, header.GetPoWAlgoInt(), params);
         return bnBlockWork * nAlgoWork;
     }
     else
@@ -167,7 +167,7 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
         {
             if (!IsAlgoActive(block.pprev, i, params))
                 continue;
-            unsigned int nBits = GetNextWorkRequiredMultiAlgo(block.pprev, &header, params, i);
+            unsigned int nBits = GetNextWorkRequiredMultiAlgo(block.pprev, &header, params, i, fPerAlgoLimitActive);
             arith_uint256 bnTarget;
             bool fNegative;
             bool fOverflow;
@@ -192,7 +192,7 @@ arith_uint256 GetBlockProof(const CBlockIndex& block, const Consensus::Params& p
     }
 }
 
-int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params& params)
+int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params& params, bool fPerAlgoLimitActive)
 {
     arith_uint256 r;
     int sign = 1;
@@ -202,7 +202,7 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& fr
         r = from.nChainWork - to.nChainWork;
         sign = -1;
     }
-    r = r * arith_uint256(params.nPowTargetSpacing) / GetBlockProof(tip, params);
+    r = r * arith_uint256(params.nPowTargetSpacing) / GetBlockProof(tip, params, fPerAlgoLimitActive);
     if (r.bits() > 63) {
         return sign * std::numeric_limits<int64_t>::max();
     }

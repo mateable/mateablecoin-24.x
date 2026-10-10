@@ -166,8 +166,9 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
     block_hash.SetNull();
     block.hashMerkleRoot = BlockMerkleRoot(block);
 
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
     uint64_t start_time = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
-    while (!HasExceededTimeout(start_time, max_timeout) && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetPoWHash(), block.nBits, chainman.GetConsensus()) && !ShutdownRequested()) {
+    while (!HasExceededTimeout(start_time, max_timeout) && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetPoWHash(), block.nBits, chainman.GetConsensus(), block.GetPoWAlgoInt(), fPerAlgoLimitActive) && !ShutdownRequested()) {
         ++block.nNonce;
     }
     if (HasExceededTimeout(start_time, max_timeout) || ShutdownRequested()) {
@@ -926,9 +927,10 @@ static RPCHelpMan getblocktemplate()
     CBlock* pblock = &pblocktemplate->block; // pointer for convenience
 
     // Update nTime
-    UpdateTime(pblock, consensusParams, pindexPrev);
+    const bool fPerAlgoLimitActive = DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_PERALGO_POWLIMIT);
+    UpdateTime(pblock, consensusParams, pindexPrev, fPerAlgoLimitActive);
     pblock->nVersion |= GetVersionForAlgo(algoNum);
-    pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, false, Params().GetConsensus());
+    pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, false, Params().GetConsensus(), fPerAlgoLimitActive);
     pblock->nNonce = 0;
 
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
